@@ -1,8 +1,10 @@
 ---
 title: 'The Clean Beauty Label Is Legally Meaningless - Here Is What That Costs You'
 description: 'There is no FDA definition of clean. A brand can call anything clean if they want to. Here is what that actually means for your skin and the environment.'
-pubDate: '2026-06-28'
+pubDate: 2026-07-05
 category: 'Greenwashing'
+slug: 'clean-beauty-label-meaningless'
+lang: 'en'
 ---
 
 There is no FDA definition of "clean." None. A brand can call bleach "clean" if they want to. That is not an exaggeration — it is the current legal reality of personal care product labeling in the United States.

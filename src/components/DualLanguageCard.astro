@@ -1,0 +1,86 @@
+---
+interface Props {
+  en: any;
+  es: any;
+  pubDate: Date;
+  category: string;
+}
+const { en, es, pubDate, category } = Astro.props;
+---
+<div class="post-entry">
+  <div class="post-meta">
+    {pubDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+    {category && <span class="category">{category}</span>}
+  </div>
+
+  <div class="lang-grid">
+    {en && (
+      <a href={`/en/blog/${en.data.slug}`} class="lang-card">
+        <h3>{en.data.title}</h3>
+        <p>{en.data.description ?? en.data.excerpt}</p>
+      </a>
+    )}
+    {!en && (
+      <div class="lang-card lang-card--pending">
+        <p class="pending-note">Coming soon</p>
+      </div>
+    )}
+    {es && (
+      <a href={`/es/blog/${es.data.slug}`} class="lang-card">
+        <h3>{es.data.title}</h3>
+        <p>{es.data.description ?? es.data.excerpt}</p>
+      </a>
+    )}
+    {!es && (
+      <div class="lang-card lang-card--pending">
+        <p class="pending-note">Traducción próximamente</p>
+      </div>
+    )}
+  </div>
+</div>
+
+<style>
+  .post-entry { margin-bottom: 2.5rem; }
+  .post-meta {
+    font-size: 13px;
+    color: var(--muted);
+    margin-bottom: 8px;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+  .category {
+    font-size: 11px;
+    font-weight: 600;
+    padding: 2px 10px;
+    border-radius: 20px;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    background: var(--coral);
+    color: #fff;
+  }
+  .lang-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 12px;
+  }
+  .lang-card {
+    display: block;
+    background: #fff;
+    border: 1px solid var(--seafoam-border);
+    border-radius: 12px;
+    padding: 0.85rem 1.25rem;
+    text-decoration: none;
+    color: inherit;
+    transition: border-color 0.15s, box-shadow 0.15s;
+  }
+  .lang-card:hover {
+    border-color: var(--teal);
+    box-shadow: 0 4px 16px rgba(45, 158, 136, 0.1);
+    text-decoration: none;
+  }
+  .lang-card--pending { opacity: 0.5; cursor: default; }
+  .lang-card h3 { font-size: 17px; margin: 0 0 8px; line-height: 1.35; color: var(--forest); }
+  .lang-card p { font-size: 14px; color: var(--muted); margin: 0; line-height: 1.5; }
+  .pending-note { font-style: italic; }
+</style>

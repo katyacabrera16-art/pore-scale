@@ -7,12 +7,13 @@ import Header from '../components/Header.astro';
 
 type Props = CollectionEntry<'blog'>['data'];
 
-const { title, description, pubDate, updatedDate, category } = Astro.props;
+const { title, description, excerpt, pubDate, updatedDate, category } = Astro.props;
+const metaDescription = description ?? excerpt;
 ---
 
 <html lang="en">
 	<head>
-		<BaseHead title={title} description={description} />
+		<BaseHead title={title} description={metaDescription} />
 		<style>
 			main {
 				width: calc(100% - 2em);

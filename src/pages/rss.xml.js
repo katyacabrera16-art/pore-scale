@@ -5,14 +5,15 @@ import { SITE_DESCRIPTION, SITE_TITLE } from '../consts';
 export async function GET(context) {
 	const now = new Date();
 	const posts = (await getCollection('blog'))
-		.filter((post) => import.meta.env.PROD ? post.data.pubDate <= now : true);
+		.filter((post) => import.meta.env.PROD ? post.data.pubDate <= now : true)
+		.filter((post) => post.data.lang === 'en');
 	return rss({
 		title: SITE_TITLE,
 		description: SITE_DESCRIPTION,
 		site: context.site,
 		items: posts.map((post) => ({
 			...post.data,
-			link: `/blog/${post.id}/`,
+			link: `/en/blog/${post.data.slug}/`,
 		})),
 	});
 }

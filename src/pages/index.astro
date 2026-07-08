@@ -7,10 +7,84 @@ import Header from '../components/Header.astro';
 import { SITE_DESCRIPTION, SITE_TITLE } from '../consts';
 
 const now = new Date();
-const posts = (await getCollection('blog'))
-	.filter((post) => import.meta.env.PROD ? post.data.pubDate <= now : true)
-	.sort((a, b) => b.data.pubDate.valueOf() - a.data.pubDate.valueOf())
-	.slice(0, 2);
+const allPosts = (await getCollection('blog'))
+	.filter((post) => import.meta.env.PROD ? post.data.pubDate <= now : true);
+
+// Dedupe by slug (prefer EN), newest-first
+const seenSlugs = new Set<string>();
+type Post = typeof allPosts[number];
+const uniquePosts: Post[] = allPosts
+	.sort((a, b) => {
+		const d = b.data.pubDate.valueOf() - a.data.pubDate.valueOf();
+		if (d !== 0) return d;
+		if (a.data.lang === 'en') return -1;
+		if (b.data.lang === 'en') return 1;
+		return 0;
+	})
+	.filter(post => {
+		if (seenSlugs.has(post.data.slug)) return false;
+		seenSlugs.add(post.data.slug);
+		return true;
+	});
+
+// Group by category
+const byCategory: Record<string, Post[]> = {};
+for (const post of uniquePosts) {
+	const key = (post.data.category ?? '').toLowerCase();
+	if (!key) continue;
+	if (!byCategory[key]) byCategory[key] = [];
+	byCategory[key].push(post);
+}
+
+function getFeatured(posts: Post[]): Post {
+	return posts.find(p => p.data.featured === true) ?? posts[0];
+}
+
+const CATEGORIES = [
+	{
+		key: 'greenwashing',
+		label: 'Greenwashing',
+		id: 'greenwashing',
+		bg: 'rgba(255,107,107,0.1)',
+		stroke: '#ff6b6b',
+		iconType: 'droplet' as const,
+		description: "The gap between what labels promise and what they're legally required to prove — so you can tell the difference.",
+	},
+	{
+		key: 'ingredients',
+		label: 'Ingredients',
+		id: 'ingredients',
+		bg: 'rgba(240,165,0,0.1)',
+		stroke: '#c48000',
+		iconType: 'flask' as const,
+		description: "What's actually in your products, how it works on your skin, and what the science really says — beyond the marketing claims.",
+	},
+	{
+		key: 'packaging',
+		label: 'Packaging',
+		id: 'packaging',
+		bg: 'rgba(45,158,136,0.1)',
+		stroke: '#2d9e88',
+		iconType: 'recycle' as const,
+		description: 'Where your packaging goes after the bin, what recycling symbols actually mean, and which materials genuinely get a second life.',
+	},
+] as const;
+
+function iconSVG(iconType: string, size: number, stroke: string, cls = ''): string {
+	const base = `class="${cls}" width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="${stroke}" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"`;
+	switch (iconType) {
+		case 'droplet':
+			return `<svg ${base}><path d="M12 2.69l5.66 5.66a8 8 0 1 1-11.31 0z"/></svg>`;
+		case 'flask':
+			return `<svg ${base}><path d="M9 3h6M10 3v5l-5 8h14l-5-8V3"/><path d="M7 17h3M10 14h2"/></svg>`;
+		case 'recycle':
+			return `<svg ${base}><path d="M7 19H4.815a1.83 1.83 0 0 1-1.57-.881 1.785 1.785 0 0 1-.004-1.784L7.196 9.5"/><path d="M11 19h8.203a1.83 1.83 0 0 0 1.556-.89 1.784 1.784 0 0 0 0-1.775l-1.226-2.12"/><path d="m14 16 3 3-3 3"/><path d="M8.293 13.596 7.196 9.5 3.1 10.598"/><path d="m9.344 5.811 1.093-1.892A1.83 1.83 0 0 1 11.985 3a1.784 1.784 0 0 1 1.546.888l3.943 6.843"/><path d="m13.378 9.633 4.096 1.098 1.097-4.096"/></svg>`;
+		case 'spark':
+			return `<svg ${base}><path d="M12 3l1.912 5.813a2 2 0 0 0 1.275 1.275L21 12l-5.813 1.912a2 2 0 0 0-1.275 1.275L12 21l-1.912-5.813a2 2 0 0 0-1.275-1.275L3 12l5.813-1.912a2 2 0 0 0 1.275-1.275L12 3z"/></svg>`;
+		default:
+			return `<svg ${base}><path d="M11 20A7 7 0 0 1 9.8 6.1C15.5 5 17 4.48 19 2c1 2 2 4.18 2 8 0 5.5-4.78 10-10 10z"/></svg>`;
+	}
+}
 ---
 
 <!doctype html>
@@ -18,21 +92,41 @@ const posts = (await getCollection('blog'))
 	<head>
 		<BaseHead title={SITE_TITLE} description={SITE_DESCRIPTION} />
 		<style>
-			body {
-				background: #f7fbfa;
+			html { scroll-behavior: smooth; }
+			body { background: #f7fbfa; }
+
+			/* ── Hero zone ── */
+			.hero-zone {
+				position: relative;
+				overflow: hidden;
 			}
+			.bubbles-bg {
+				position: absolute;
+				inset: 0;
+				pointer-events: none;
+				z-index: 0;
+			}
+			.bubble {
+				position: absolute;
+				bottom: 0;
+				border-radius: 50%;
+				animation-name: bubble-rise;
+				animation-timing-function: linear;
+				animation-iteration-count: infinite;
+				animation-duration: var(--bubble-dur, 10s);
+				animation-delay: var(--bubble-delay, 0s);
+			}
+
+			/* ── Hero ── */
 			.hero {
+				position: relative;
+				z-index: 1;
 				max-width: 760px;
 				margin: 0 auto;
 				padding: 5rem 2rem 4rem;
 				text-align: center;
-				border-bottom: 1px solid #c8e0da;
 			}
-			.masthead {
-				display: block;
-				line-height: 1;
-				margin-bottom: 1rem;
-			}
+			.masthead { display: block; line-height: 1; margin-bottom: 1rem; }
 			.masthead-pore {
 				display: inline;
 				font-size: 4.5rem;
@@ -49,9 +143,7 @@ const posts = (await getCollection('blog'))
 				letter-spacing: -0.03em;
 				vertical-align: baseline;
 			}
-			.masthead .dot {
-				color: #ff6b6b;
-			}
+			.masthead .dot { color: #ff6b6b; }
 			.eyebrow {
 				display: block;
 				font-size: 0.8rem;
@@ -67,6 +159,24 @@ const posts = (await getCollection('blog'))
 				color: #1a3a34;
 				line-height: 1.15;
 				margin: 0 0 1.25rem;
+			}
+			.underline-group {
+				display: inline-block;
+				position: relative;
+				white-space: nowrap;
+			}
+			.coral-underline {
+				position: absolute;
+				left: 0;
+				bottom: -6px;
+				width: 100%;
+				height: 8px;
+				overflow: visible;
+			}
+			.coral-underline path {
+				stroke-dasharray: 220;
+				stroke-dashoffset: 220;
+				animation: draw-underline 1.2s ease 0.4s forwards;
 			}
 			.hero-subtitle {
 				font-size: 1.1rem;
@@ -86,100 +196,337 @@ const posts = (await getCollection('blog'))
 				letter-spacing: 0.03em;
 				transition: background 0.2s;
 			}
-			.cta-button:hover {
-				background: #1a7a68;
+			.cta-button:hover { background: #1a7a68; }
+
+			/* ── Floating icons ── */
+			.float-icon {
+				position: absolute;
+				opacity: 0.55;
+				pointer-events: none;
+				z-index: 2;
 			}
-			.latest-section {
-				max-width: 760px;
-				margin: 0 auto;
-				padding: 0 2rem 5rem;
+			.float-icon--flower { top: 14%; left: 7%;   animation: float-a 5.5s ease-in-out infinite; }
+			.float-icon--leaf   { top: 11%; right: 6%;  animation: float-b 4.8s ease-in-out infinite 0.9s; }
+			.float-icon--drop   { bottom: 22%; left: 10%; animation: float-a 6.2s ease-in-out infinite 1.7s; }
+			.float-icon--flask  { bottom: 20%; right: 9%; animation: float-b 5.0s ease-in-out infinite 0.4s; }
+
+			/* ── Ticker ── */
+			.ticker-band {
+				position: relative;
+				z-index: 1;
+				border-top: 1px solid #c8e0da;
+				border-bottom: 1px solid #c8e0da;
+				overflow: hidden;
+				padding: 0.55rem 0;
 			}
-			.section-label {
-				font-size: 0.75rem;
+			.ticker-track {
+				display: flex;
+				width: max-content;
+				animation: marquee 22s linear infinite;
+			}
+			.ticker-item {
+				font-size: 0.7rem;
 				font-weight: 700;
-				letter-spacing: 0.14em;
+				letter-spacing: 0.18em;
 				text-transform: uppercase;
 				color: #2d9e88;
-				margin-bottom: 1.5rem;
+				white-space: nowrap;
+				padding: 0 1.6rem;
 			}
-			.post-cards {
+			.ticker-dot { color: #c8e0da; font-size: 0.8rem; line-height: 1; }
+
+			/* ── Ticker items as jump links ── */
+			.ticker-item a {
+				color: inherit;
+				text-decoration: none;
+			}
+			.ticker-item a:hover { text-decoration: underline; }
+
+			/* ── Categories wrapper ── */
+			.categories-wrapper {
+				max-width: 760px;
+				margin: 0 auto;
+				padding: 2rem 2rem 5rem;
+				border-top: 1px solid #c8e0da;
+			}
+
+			/* ── Category section ── */
+			.cat-section {
+				margin-bottom: 5rem;
+				scroll-margin-top: 1.5rem;
+			}
+			.cat-section:last-child { margin-bottom: 0; }
+
+			.cat-icon-block {
 				display: flex;
-				flex-direction: column;
-				gap: 1.25rem;
+				align-items: center;
+				justify-content: center;
+				width: 100%;
+				height: 140px;
+				border-radius: 10px 10px 0 0;
 			}
+			.cat-icon-block svg { display: block; }
+
+			.cat-header {
+				background: #fff;
+				border: 1px solid #c8e0da;
+				border-top: none;
+				border-radius: 0 0 10px 10px;
+				padding: 1.25rem 1.5rem 1.4rem;
+				margin-bottom: 1rem;
+			}
+			.cat-title {
+				font-size: 1.05rem;
+				font-weight: 800;
+				color: #1a3a34;
+				letter-spacing: -0.01em;
+				margin: 0 0 0.4rem;
+			}
+			.cat-count {
+				font-weight: 400;
+				color: #4a7a72;
+				font-size: 0.85rem;
+				margin-left: 0.35rem;
+			}
+			.cat-description {
+				font-size: 0.9rem;
+				color: #4a7a72;
+				line-height: 1.65;
+				margin: 0;
+			}
+
+			/* ── Post cards ── */
+			.post-cards { display: flex; flex-direction: column; gap: 1rem; }
+
 			.post-card {
 				background: #fff;
 				border: 1px solid #c8e0da;
 				border-radius: 8px;
-				padding: 1.75rem 2rem;
+				padding: 0;
+				overflow: hidden;
 				text-decoration: none;
 				color: inherit;
 				display: block;
-				transition: box-shadow 0.2s;
+				transition: box-shadow 0.3s ease, border-color 0.3s ease, transform 0.3s ease;
 			}
 			.post-card:hover {
-				box-shadow: 0 4px 16px rgba(45, 158, 136, 0.1);
+				border-color: #2d9e88;
+				box-shadow: 0 4px 20px rgba(45, 158, 136, 0.12);
+				transform: translateY(-4px);
 			}
+			.post-card--featured {
+				border-width: 2px;
+				border-color: var(--cat-accent, #2d9e88);
+			}
+			.post-card--featured .card-title {
+				font-size: 1.3rem;
+			}
+
+			.card-body { padding: 1.25rem 1.5rem; }
 			.card-meta {
 				display: flex;
 				align-items: center;
-				gap: 0.75rem;
-				margin-bottom: 0.6rem;
+				gap: 0.6rem;
+				margin-bottom: 0.5rem;
 			}
-			.card-date {
-				font-size: 0.8rem;
-				color: #4a7a72;
-			}
-			.card-category {
-				font-size: 0.7rem;
+			.card-date { font-size: 0.78rem; color: #4a7a72; }
+			.card-featured-badge {
+				font-size: 0.65rem;
 				font-weight: 700;
-				letter-spacing: 0.08em;
+				letter-spacing: 0.1em;
 				text-transform: uppercase;
-				color: #ff6b6b;
+				color: #2d9e88;
+				border: 1px solid #c8e0da;
+				padding: 1px 7px;
+				border-radius: 20px;
 			}
 			.card-title {
-				font-size: 1.15rem;
+				font-size: 1.05rem;
 				font-weight: 700;
 				color: #1a3a34;
-				margin: 0 0 0.5rem;
+				margin: 0 0 0.45rem;
 				line-height: 1.3;
 			}
 			.card-excerpt {
-				font-size: 0.9rem;
+				font-size: 0.88rem;
 				color: #4a7a72;
 				line-height: 1.6;
 				margin: 0;
+			}
+
+			/* ── AI placeholder ── */
+			.ai-coming-soon {
+				text-align: center;
+				padding: 2rem 1rem;
+				color: #4a7a72;
+				font-size: 0.9rem;
+				font-style: italic;
+			}
+
+			/* ── Keyframes ── */
+			@keyframes draw-underline { to { stroke-dashoffset: 0; } }
+			@keyframes float-a {
+				0%, 100% { transform: translateY(0) rotate(0deg); }
+				50%       { transform: translateY(-13px) rotate(5deg); }
+			}
+			@keyframes float-b {
+				0%, 100% { transform: translateY(0) rotate(0deg); }
+				50%       { transform: translateY(-10px) rotate(-4deg); }
+			}
+			@keyframes bubble-rise {
+				0%   { transform: translateY(0);      opacity: 0;   }
+				10%  { opacity: 0.5; }
+				85%  { opacity: 0.4; }
+				100% { transform: translateY(-400px); opacity: 0;   }
+			}
+			@keyframes marquee {
+				from { transform: translateX(0); }
+				to   { transform: translateX(-50%); }
+			}
+
+			/* ── Reduced motion ── */
+			@media (prefers-reduced-motion: reduce) {
+				.coral-underline path { animation: none; stroke-dashoffset: 0; }
+				.float-icon           { animation: none; }
+				.bubble               { animation: none; opacity: 0; }
+				.ticker-track         { animation: none; }
+				.post-card            { transition: border-color 0.2s ease; }
+				.post-card:hover      { transform: none; }
 			}
 		</style>
 	</head>
 	<body>
 		<Header />
 		<main>
-			<section class="hero">
-				<span class="masthead"><span class="masthead-pore">Pore</span> <span class="masthead-scale">Scale<span class="dot">.</span></span></span>
-				<span class="eyebrow">Skincare × Environment × Science</span>
-				<h1>Better skincare begins with better understanding.</h1>
-				<p class="hero-subtitle">Science-backed insights on ingredients, packaging, and the environmental footprint of beauty.</p>
-				<a class="cta-button" href="/blog">Start Reading</a>
-			</section>
+			<div class="hero-zone">
 
-			<section class="latest-section">
-				<p class="section-label">Latest</p>
-				<div class="post-cards">
-					{posts.map((post) => (
-						<a class="post-card" href={`/blog/${post.id}/`}>
-							<div class="card-meta">
-								<span class="card-date"><FormattedDate date={post.data.pubDate} /></span>
-								{post.data.category && <span class="card-category">{post.data.category}</span>}
-							</div>
-							<h2 class="card-title">{post.data.title}</h2>
-							<p class="card-excerpt">{post.data.description}</p>
-						</a>
-					))}
+				<!-- Rising bubbles -->
+				<div class="bubbles-bg" aria-hidden="true">
+					<div class="bubble" style="left:8%;  width:10px; height:10px; background:#2d9e88; --bubble-dur:10s;   --bubble-delay:0s;"></div>
+					<div class="bubble" style="left:18%; width:14px; height:14px; background:#ff6b6b; --bubble-dur:13s;   --bubble-delay:2s;"></div>
+					<div class="bubble" style="left:32%; width:8px;  height:8px;  background:#e8a0b4; --bubble-dur:8s;    --bubble-delay:4.5s;"></div>
+					<div class="bubble" style="left:47%; width:18px; height:18px; background:#2d9e88; --bubble-dur:11s;   --bubble-delay:1s;"></div>
+					<div class="bubble" style="left:58%; width:12px; height:12px; background:#ff6b6b; --bubble-dur:9s;    --bubble-delay:3.5s;"></div>
+					<div class="bubble" style="left:72%; width:16px; height:16px; background:#2d9e88; --bubble-dur:12s;   --bubble-delay:6s;"></div>
+					<div class="bubble" style="left:88%; width:9px;  height:9px;  background:#e8a0b4; --bubble-dur:10.5s; --bubble-delay:2.5s;"></div>
 				</div>
-			</section>
+
+				<!-- Hero -->
+				<section class="hero">
+					<div class="float-icon float-icon--flower" aria-hidden="true">
+						<svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#e8a0b4" stroke-width="1.5" stroke-linecap="round">
+							<circle cx="12" cy="12" r="2.5"/>
+							<ellipse cx="12" cy="5.5" rx="2" ry="3"/>
+							<ellipse cx="12" cy="18.5" rx="2" ry="3"/>
+							<ellipse cx="5.5" cy="12" rx="3" ry="2"/>
+							<ellipse cx="18.5" cy="12" rx="3" ry="2"/>
+						</svg>
+					</div>
+					<div class="float-icon float-icon--leaf" aria-hidden="true">
+						<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#2d9e88" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+							<path d="M11 20A7 7 0 0 1 9.8 6.1C15.5 5 17 4.48 19 2c1 2 2 4.18 2 8 0 5.5-4.78 10-10 10z"/>
+							<path d="M2 21c0-3 1.85-5.36 5.08-6C9.5 14.52 12 13 13 12"/>
+						</svg>
+					</div>
+					<div class="float-icon float-icon--drop" aria-hidden="true">
+						<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#ff6b6b" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+							<path d="M12 2.69l5.66 5.66a8 8 0 1 1-11.31 0z"/>
+						</svg>
+					</div>
+					<div class="float-icon float-icon--flask" aria-hidden="true">
+						<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#f0a500" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+							<path d="M9 3h6M10 3v5l-5 8h14l-5-8V3"/>
+							<path d="M7 17h3M10 14h2"/>
+						</svg>
+					</div>
+
+					<span class="masthead"><span class="masthead-pore">Pore</span> <span class="masthead-scale">Scale<span class="dot">.</span></span></span>
+					<span class="eyebrow">Skincare × Environment × Science</span>
+					<h1>Better skincare begins with <span class="underline-group">better understanding<svg class="coral-underline" viewBox="0 0 260 8" preserveAspectRatio="none" aria-hidden="true"><path d="M2,6 Q65,1 130,5 Q195,9 258,3" stroke="#ff6b6b" stroke-width="2.5" fill="none" stroke-linecap="round"/></svg></span>.</h1>
+					<p class="hero-subtitle">Science-backed insights on ingredients, packaging, and the environmental footprint of beauty.</p>
+					<a class="cta-button" href="/blog">Start Reading</a>
+				</section>
+
+				<!-- Ticker — items are jump links -->
+				<div class="ticker-band">
+					<div class="ticker-track">
+						<span class="ticker-item"><a href="#packaging">Packaging</a></span><span class="ticker-dot">·</span>
+						<span class="ticker-item"><a href="#greenwashing">Greenwashing</a></span><span class="ticker-dot">·</span>
+						<span class="ticker-item"><a href="#ingredients">Ingredients</a></span><span class="ticker-dot">·</span>
+						<span class="ticker-item"><a href="#ai-innovation">AI &amp; Innovation</a></span><span class="ticker-dot">·</span>
+						<span class="ticker-item"><a href="#packaging">Packaging</a></span><span class="ticker-dot">·</span>
+						<span class="ticker-item"><a href="#greenwashing">Greenwashing</a></span><span class="ticker-dot">·</span>
+						<span class="ticker-item"><a href="#ingredients">Ingredients</a></span><span class="ticker-dot">·</span>
+						<span class="ticker-item"><a href="#ai-innovation">AI &amp; Innovation</a></span><span class="ticker-dot">·</span>
+					</div>
+				</div>
+
+			</div><!-- /hero-zone -->
+
+			<!-- Category sections -->
+			<div class="categories-wrapper">
+
+				{CATEGORIES.map((cat) => {
+					const posts = byCategory[cat.key] ?? [];
+					const featured = posts.length > 0 ? getFeatured(posts) : null;
+					const rest = posts.filter(p => p !== featured);
+					return (
+						<section class="cat-section" id={cat.id}>
+							<div class="cat-icon-block" style={`background: ${cat.bg};`}>
+								<Fragment set:html={iconSVG(cat.iconType, 60, cat.stroke)} />
+							</div>
+							<div class="cat-header">
+								<h2 class="cat-title">
+									{cat.label}
+									{posts.length > 0 && <span class="cat-count">({posts.length})</span>}
+								</h2>
+								<p class="cat-description">{cat.description}</p>
+							</div>
+							{posts.length > 0 && (
+								<div class="post-cards">
+									{featured && (
+										<a class="post-card post-card--featured" style={`--cat-accent: ${cat.stroke};`} href={`/${featured.data.lang}/blog/${featured.data.slug}/`}>
+											<div class="card-body">
+												<div class="card-meta">
+													<span class="card-date"><FormattedDate date={featured.data.pubDate} /></span>
+													<span class="card-featured-badge">Featured</span>
+												</div>
+												<h3 class="card-title">{featured.data.title}</h3>
+												<p class="card-excerpt">{featured.data.description ?? featured.data.excerpt}</p>
+											</div>
+										</a>
+									)}
+									{rest.map(post => (
+										<a class="post-card" href={`/${post.data.lang}/blog/${post.data.slug}/`}>
+											<div class="card-body">
+												<div class="card-meta">
+													<span class="card-date"><FormattedDate date={post.data.pubDate} /></span>
+												</div>
+												<h3 class="card-title">{post.data.title}</h3>
+												<p class="card-excerpt">{post.data.description ?? post.data.excerpt}</p>
+											</div>
+										</a>
+									))}
+								</div>
+							)}
+						</section>
+					);
+				})}
+
+				<!-- AI & Innovation placeholder -->
+				<section class="cat-section" id="ai-innovation">
+					<div class="cat-icon-block" style="background: rgba(124,58,237,0.08);">
+						<Fragment set:html={iconSVG('spark', 60, '#7c3aed')} />
+					</div>
+					<div class="cat-header">
+						<h2 class="cat-title">AI &amp; Innovation</h2>
+						<p class="cat-description">How AI is changing skincare research, what personalized skincare can and can't actually do, and the ethical questions worth asking along the way. Coming soon.</p>
+					</div>
+					<p class="ai-coming-soon">More coming soon.</p>
+				</section>
+
+			</div>
 		</main>
 		<Footer />
 	</body>
 </html>
-

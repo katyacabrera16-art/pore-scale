@@ -1,8 +1,10 @@
 ---
 title: 'Your Moisturizer Is Mostly Water - And That Water Has a Footprint'
 description: 'The first ingredient in 90% of your skincare is water. Nobody talks about where it came from.'
-pubDate: '2026-06-29'
+pubDate: 2026-07-12
 category: 'Ingredients'
+slug: 'moisturizer-water-footprint'
+lang: 'en'
 ---
 
 The first ingredient in 90% of your skincare is the same thing coming out of your tap — except it traveled further to get there.
