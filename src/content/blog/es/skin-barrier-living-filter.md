@@ -26,3 +26,8 @@ La formulación enfocada en la barrera cutánea se ha vuelto una de las áreas m
 No necesitas memorizar química de lípidos para tomar mejores decisiones. Algunas cosas a las que prestar atención: si un producto promete "penetración profunda", pregúntate qué significa eso realmente para una molécula de ese tamaño. Si tu piel se siente tensa, irritada o reactiva después de un producto nuevo con frecuencia, puede ser una señal de que el mortero de tu barrera se alteró, más que una señal de que necesitas algo "más fuerte." Y una hidratación simple y constante — que apoye la capa de lípidos en lugar de combatirla — hace más por la mayoría de las pieles que aplicar activos agresivos todo el tiempo.
 
 Tu piel no es una pared que hay que romper. Es un sistema vivo que vale la pena entender en sus propios términos — y una vez que lo entiendes, elegir qué ponerte se vuelve mucho más claro.
+
+## Fuentes
+
+- [Menon, Cleary & Lane, "The Structure and Function of the Stratum Corneum"](https://www.nature.com/articles/emm19992.pdf) — revisión del modelo de "ladrillos y mortero" de Peter Elias sobre la barrera cutánea.
+- [Ananthapadmanabhan et al., "Stratum corneum fatty acids: their critical role in preserving barrier integrity"](https://onlinelibrary.wiley.com/doi/full/10.1111/ics.12042), *International Journal of Cosmetic Science* — sobre las proporciones de ceramidas, colesterol y ácidos grasos en la matriz lipídica.

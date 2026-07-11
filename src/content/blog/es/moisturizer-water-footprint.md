@@ -40,3 +40,9 @@ Busca marcas que publiquen datos sobre su uso de agua. Un número pequeño pero 
 Considera hacer un solo cambio a algo libre de agua. No necesitas transformar toda tu rutina. Un solo producto anhidro — un bálsamo limpiador, un aceite facial, una barra de shampoo sólida — reduce de forma significativa tu huella hídrica sin cambiar los resultados en tu piel.
 
 El agua de tu crema hidratante vino de algún lugar. Vale la pena saber de dónde.
+
+## Fuentes
+
+- [Cosmetics & Toiletries, "Skin Care Moisturizers"](https://www.cosmeticsandtoiletries.com/formulas-products/skin-care/article/21834636/skin-care-moisturizers) — contenido típico de agua (60–80%) en fórmulas de emulsión de aceite en agua.
+- [Quantis, "Blue Gold: Why Tackling Water Challenges Is a Key Lever for the Cosmetics Industry"](https://quantis.com/insights/water-risk-cosmetics-personal-care-companies/) — sobre el estrés hídrico en las regiones de manufactura cosmética.
+- [Banco Mundial, "Climate Variability, Drought and Drought Management in Morocco"](https://documents1.worldbank.org/curated/en/353801538414553978/pdf/130404-WP-P159851-Morocco-WEB.pdf) — sobre la disminución del nivel freático de Marruecos y su efecto en ingredientes como el aceite de argán.

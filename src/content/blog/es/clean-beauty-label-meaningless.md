@@ -29,7 +29,7 @@ Aquí es donde entra lo que ya hemos hablado antes — qué pasa con estos ingre
 
 Un producto promocionado como "clean" por excluir parabenos podría contener un reemplazo de parabeno con un perfil de toxicidad acuática peor. Un emoliente "natural" derivado de aceite de palma carga una huella de deforestación que ninguna etiqueta está obligada a revelar. Un conservador "no tóxico" podría no ser tóxico para los humanos, pero sí muy persistente en los cuerpos de agua.
 
-La Directiva de Afirmaciones Verdes de la Unión Europea, que ahora exige sustento para las afirmaciones de marketing ambiental, está empezando a cerrar este vacío — pero solo para productos vendidos en Europa. Las marcas estadounidenses están haciendo arbitraje regulatorio: promocionan fórmulas "conformes con la UE" en Europa y venden versiones más antiguas en todos los demás lugares.
+La Unión Europea intentó cerrar este vacío con una Directiva de Afirmaciones Verdes dedicada — y luego retiró la propuesta en 2025 tras la presión de la industria. Lo que queda es la Directiva de Empoderamiento al Consumidor, parte de la Directiva contra el Greenwashing de la UE (2024/825), que prohíbe términos sin sustento como "eco-friendly" y "verde" a partir de septiembre de 2026 — pero solo para productos vendidos en Europa. Las marcas estadounidenses están haciendo arbitraje regulatorio: promocionan fórmulas "conformes con la UE" en Europa y venden versiones más antiguas en todos los demás lugares.
 
 **Tres preguntas antes de cualquier compra "clean"**
 
@@ -40,3 +40,10 @@ La Directiva de Afirmaciones Verdes de la Unión Europea, que ahora exige susten
 3. **¿Hay una verificación de un tercero?** Certificaciones como EWG Verified, Cosmos Organic y B Corp requieren documentación real. No son perfectas, pero son responsabilidad con dientes de verdad.
 
 La etiqueta no te está mintiendo. Simplemente no te está diciendo nada en absoluto. Lo cual, dependiendo de lo que quieras saber, podría ser peor.
+
+## Fuentes
+
+- [FDA, "FDA Authority Over Cosmetics"](https://www.fda.gov/cosmetics/cosmetics-laws-regulations/fda-authority-over-cosmetics-how-cosmetics-are-not-fda-approved-are-fda-regulated) — confirma que la FDA no define "clean," "natural," ni "no tóxico" para cosméticos.
+- [Latham & Watkins, sobre el retiro de la Directiva de Afirmaciones Verdes](https://www.lw.com/en/insights/european-commission-announces-intention-to-withdraw-eu-green-claims-directive-proposal) — sobre el retiro de junio de 2025.
+- [Gasilov Group, "EU Green Claims Directive Withdrawn: Why Greenwashing Risk Is Higher in 2026"](https://www.gasilov.com/insights/green-claims-directive-withdrawal-greenwashing-enforcement-2026) — qué la reemplaza y la fecha de aplicación de septiembre de 2026.
+- [EWG Verified](https://www.ewg.org/ewgverified/), [COSMOS Organic](https://cosmos-standard.org/), [B Corp Certification](https://www.bcorporation.net/) — los estándares de terceros mencionados arriba.

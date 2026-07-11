@@ -26,3 +26,8 @@ Barrier-focused formulation has become one of the most active areas in skincare 
 You don't need to memorize lipid chemistry to make better choices. A few things to watch for: if a product promises "deep penetration," ask what that actually means for a molecule at that size. If your skin regularly feels tight, irritated, or reactive after a new product, it may be a sign your barrier's mortar has been disrupted rather than that you need something "stronger." And simple, consistent moisturizing — supporting the lipid layer rather than fighting it — does more for most skin than aggressive actives applied constantly.
 
 Your skin isn't a wall to break through. It's a living system worth understanding on its own terms — and once you do, choosing what to put on it gets a lot clearer.
+
+## Sources
+
+- [Menon, Cleary & Lane, "The Structure and Function of the Stratum Corneum"](https://www.nature.com/articles/emm19992.pdf) — review of Peter Elias's "bricks and mortar" model of the skin barrier.
+- [Ananthapadmanabhan et al., "Stratum corneum fatty acids: their critical role in preserving barrier integrity"](https://onlinelibrary.wiley.com/doi/full/10.1111/ics.12042), *International Journal of Cosmetic Science* — on ceramide, cholesterol, and fatty acid ratios in the lipid matrix.

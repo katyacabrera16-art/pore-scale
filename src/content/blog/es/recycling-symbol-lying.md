@@ -32,3 +32,9 @@ Este es un cambio real: durante décadas, el símbolo permitió a las empresas i
 Busca la lista de plásticos aceptados en tu municipio específico — la mayoría de las ciudades publican una, y revisarla toma dos minutos. Enjuaga los envases antes de reciclarlos; la contaminación es una de las razones principales por las que artículos que sí serían reciclables terminan rechazados en la etapa de clasificación. Y cuando puedas, prefiere envases de un solo material — un frasco hecho completamente de vidrio o completamente de un solo tipo de plástico tiene muchas más probabilidades de procesarse de verdad que un pump de materiales mixtos.
 
 El símbolo no es inútil en todos lados. Simplemente no es una garantía en ningún lado. Conocer la diferencia es el primer paso hacia elecciones de envases que realmente hagan lo que crees que están haciendo.
+
+## Fuentes
+
+- [Wikipedia, "Resin identification code"](https://en.wikipedia.org/wiki/Resin_identification_code) — historia del símbolo creado en 1988 por la Society of the Plastics Industry y su revisión de 2013 por ASTM.
+- [CalRecycle, "SB 343: Accurate Recycling Labels"](https://calrecycle.ca.gov/wcs/recyclinglabels/) — la ley de Veracidad en el Reciclaje de California y sus criterios de reciclabilidad.
+- [Reglamento (UE) 2025/40, sobre Envases y Residuos de Envases (PPWR)](https://eur-lex.europa.eu/EN/legal-content/summary/packaging-and-packaging-waste-from-2026.html) — el requisito de etiquetado armonizado de la UE, que se implementa entre 2026 y 2028.

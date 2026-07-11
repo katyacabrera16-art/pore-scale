@@ -19,7 +19,7 @@ El triclosán, un antibacterial que antes estaba en casi todos los limpiadores f
 
 **El contexto mundial en 2026**
 
-Los reguladores ambientales en la UE y Canadá se están moviendo más rápido que Estados Unidos para actualizar sus listas de monitoreo de contaminantes e incluir químicos de cuidado personal. La Directiva Marco del Agua actualizada de la UE ya identifica varios ingredientes cosméticos como contaminantes prioritarios. Eso significa que tu crema hidratante se está convirtiendo en un problema de política hídrica.
+Los reguladores ambientales en la UE y Canadá se están moviendo más rápido que Estados Unidos en esto. En febrero de 2026, la UE actualizó su lista de sustancias prioritarias de la Directiva Marco del Agua para incluir, por primera vez, fármacos, bisfenoles y PFAS — categorías que se cruzan con varios ingredientes de cuidado personal, aunque los químicos cosméticos individuales todavía no aparezcan nombrados directamente. Eso significa que tu crema hidratante se está acercando a convertirse en un problema de política hídrica, aunque todavía no lo sea del todo.
 
 **Qué puedes hacer**
 
@@ -28,3 +28,10 @@ No necesitas transformar toda tu rutina. Pero algunos cambios hacen una diferenc
 También hay un movimiento de mayor impacto: los productos de enjuague — limpiadores, acondicionadores, exfoliantes — tienen mayor exposición ambiental directa que los productos que se dejan sobre la piel. Revisarlos primero es donde puedes tener el mayor efecto.
 
 El agua no termina contigo. Lo que te pones en la piel no se queda ahí.
+
+## Fuentes
+
+- [Environment and Climate Change Canada, "Pharmaceuticals and personal care products in Canadian municipal wastewater and biosolids: occurrence, fate, and time trends 2010–2013 to 2022"](https://www.ncbi.nlm.nih.gov/pmc/articles/PMC11868229/), *Environmental Science and Pollution Research*, feb. 2025 — el estudio referido arriba.
+- [Revisión PMC, "Removal of pharmaceuticals and personal care products (PPCPs) from wastewater"](https://pmc.ncbi.nlm.nih.gov/articles/PMC9960457/) — sobre la eficiencia de remoción promedio y por qué el tratamiento convencional no logra eliminar los PPCPs por completo.
+- [NPR, "FDA Bans Triclosan And 18 Other Chemicals From Soaps"](https://www.npr.org/sections/health-shots/2016/09/02/492394717/fda-bans-19-chemicals-used-in-antibacterial-soaps) — sobre la prohibición de 2016 y la evidencia detrás de ella.
+- [Consejo de la UE, comunicado "Safeguarding water quality"](https://www.consilium.europa.eu/en/press/press-releases/2026/02/17/safeguarding-water-quality-council-signs-off-on-stricter-protection-rules-for-surface-water-and-groundwater/) — sobre la actualización de febrero de 2026 a la Directiva Marco del Agua.

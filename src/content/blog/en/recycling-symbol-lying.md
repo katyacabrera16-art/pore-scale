@@ -32,3 +32,9 @@ This is a real shift: for decades, the symbol let companies imply recyclability 
 Look up your specific municipality's accepted plastics list — most cities publish one, and it takes two minutes to check. Rinse packaging before recycling; contamination is one of the biggest reasons otherwise-recyclable items get rejected at the sorting stage. And where you can, favor single-material packaging — a jar made entirely of glass or entirely of one plastic type is far more likely to actually get processed than a mixed-material pump.
 
 The symbol isn't meaningless everywhere. It's just not a guarantee anywhere. Knowing the difference is the first step toward packaging choices that actually do what you think they're doing.
+
+## Sources
+
+- [Wikipedia, "Resin identification code"](https://en.wikipedia.org/wiki/Resin_identification_code) — history of the 1988 Society of the Plastics Industry symbol and its 2013 ASTM revision.
+- [CalRecycle, "SB 343: Accurate Recycling Labels"](https://calrecycle.ca.gov/wcs/recyclinglabels/) — California's Truth in Recycling law and its recyclability criteria.
+- [Regulation (EU) 2025/40, Packaging and Packaging Waste Regulation (PPWR)](https://eur-lex.europa.eu/EN/legal-content/summary/packaging-and-packaging-waste-from-2026.html) — the EU's harmonized labeling requirement, phasing in 2026–2028.

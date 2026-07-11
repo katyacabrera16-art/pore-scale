@@ -40,3 +40,9 @@ Look for brands publishing water use data. A small but growing number of certifi
 Consider one water-free swap. You do not need to overhaul your routine. One anhydrous product — a cleansing balm, a facial oil, a solid shampoo bar — meaningfully reduces your water footprint without changing your skin results.
 
 The water in your moisturizer came from somewhere. It is worth knowing where.
+
+## Sources
+
+- [Cosmetics & Toiletries, "Skin Care Moisturizers"](https://www.cosmeticsandtoiletries.com/formulas-products/skin-care/article/21834636/skin-care-moisturizers) — typical water content (60–80%) in oil-in-water emulsion formulas.
+- [Quantis, "Blue Gold: Why Tackling Water Challenges Is a Key Lever for the Cosmetics Industry"](https://quantis.com/insights/water-risk-cosmetics-personal-care-companies/) — on water stress across cosmetic manufacturing regions.
+- [World Bank, "Climate Variability, Drought and Drought Management in Morocco"](https://documents1.worldbank.org/curated/en/353801538414553978/pdf/130404-WP-P159851-Morocco-WEB.pdf) — on Morocco's declining water table and its effect on ingredients like argan oil.

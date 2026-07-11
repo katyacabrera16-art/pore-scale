@@ -60,3 +60,9 @@ The Microbead-Free Waters Act removed a visible, easy-to-understand plastic from
 But the underlying logic — that plastic polymers are acceptable cosmetic ingredients whose post-rinse fate is someone else's problem — was never challenged. The beads changed shape. The assumption stayed the same.
 
 The next time a brand tells you their formula is "bead-free," they are telling you something true and almost entirely beside the point.
+
+## Sources
+
+- [Microbead-Free Waters Act of 2015, Public Law 114-114](https://www.govinfo.gov/content/pkg/COMPS-11806/pdf/COMPS-11806.pdf) — full text of the law, including the exact "less than five millimeters" definition.
+- [FDA, "The Microbead-Free Waters Act of 2015: FAQs"](https://www.fda.gov/cosmetics/cosmetics-laws-regulations/microbead-free-waters-act-faqs) — confirms the rinse-off-only scope and the manufacturing/sales phase-out dates.
+- [NOAA Marine Debris Program, "The President Signs a National Microbead Ban"](https://blog.marinedebris.noaa.gov/president-signs-national-microbead-ban) — background on why the law was passed.

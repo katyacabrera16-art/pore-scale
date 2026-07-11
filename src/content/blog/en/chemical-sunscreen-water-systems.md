@@ -17,7 +17,7 @@ Most tap water gets treated before it reaches rivers or the ocean. Treatment pla
 
 One ingredient in particular slips right through: **oxybenzone**. It's the active UV filter in most drugstore sunscreens — the one doing the actual work of blocking the sun. The problem? When it reaches seawater, it doesn't just float around harmlessly. Corals absorb it and, in a twist nobody saw coming, convert it into a toxin that gets activated by *light*. The very thing your sunscreen was blocking becomes the thing that helps kill the reef.
 
-A study published in the journal *Science* confirmed this. It's not a theory — it's chemistry. Oxybenzone also messes with hormone function in fish and has been detected in fish tissue far from any beach.
+A peer-reviewed study published in *Archives of Environmental Contamination and Toxicology* confirmed this. It's not a theory — it's chemistry. Oxybenzone also messes with hormone function in fish and has been detected in fish tissue far from any beach.
 
 **What's happening right now in 2026**
 
@@ -36,3 +36,10 @@ A quick test: if a sunscreen absorbs completely with no white residue at all, it
 Want a zero-ingredient option? A UV-protective shirt and a hat protect just as well as SPF, with nothing at all going down the drain.
 
 You don't have to choose between taking care of your skin and taking care of the water you're swimming in. You just need to know what to look for.
+
+## Sources
+
+- [Downs et al. (2016), "Toxicopathological Effects of the Sunscreen UV Filter, Oxybenzone..."](https://repository.library.noaa.gov/view/noaa/13720), *Archives of Environmental Contamination and Toxicology* — the peer-reviewed study on oxybenzone's light-activated toxicity to coral.
+- [NOAA, "Sunscreen Chemicals and Coral Reefs"](https://oceanservice.noaa.gov/news/sunscreen-corals-noaa-studies.html) — plain-language summary of the research.
+- [Hawaii sunscreen law overview](https://www.hawaii-guide.com/blog/hawaii-new-reef-safe-sunscreen-law) — on Hawaii's oxybenzone/octinoxate ban, effective January 2021.
+- [Colorescience, "Sunscreen Bans: Countries Banning Harmful Sunscreen Ingredients"](https://www.colorescience.com/blogs/blog/sunscreen-bans) — Palau, Thailand, and U.S. Virgin Islands ban details.

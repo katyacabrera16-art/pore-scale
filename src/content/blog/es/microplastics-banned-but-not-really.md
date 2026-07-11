@@ -60,3 +60,9 @@ La ley eliminó un plástico visible y fácil de entender de los productos de en
 Pero la lógica de fondo — que los polímeros plásticos son ingredientes cosméticos aceptables cuyo destino después del enjuague es problema de alguien más — nunca fue cuestionada. Las esferas cambiaron de forma. La suposición se quedó igual.
 
 La próxima vez que una marca te diga que su fórmula está "libre de microesferas," te está diciendo algo verdadero y casi completamente fuera de lugar.
+
+## Fuentes
+
+- [Microbead-Free Waters Act de 2015, Ley Pública 114-114](https://www.govinfo.gov/content/pkg/COMPS-11806/pdf/COMPS-11806.pdf) — texto completo de la ley, incluyendo la definición exacta de "menos de cinco milímetros."
+- [FDA, "The Microbead-Free Waters Act of 2015: FAQs"](https://www.fda.gov/cosmetics/cosmetics-laws-regulations/microbead-free-waters-act-faqs) — confirma que la ley solo cubre productos de enjuague y las fechas de eliminación gradual.
+- [NOAA Marine Debris Program, "The President Signs a National Microbead Ban"](https://blog.marinedebris.noaa.gov/president-signs-national-microbead-ban) — contexto de por qué se aprobó la ley.

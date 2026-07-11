@@ -19,7 +19,7 @@ Triclosan, an antibacterial that used to be in nearly every face wash, was event
 
 **2026 world context**
 
-Environmental regulators in the EU and Canada are moving faster than the US on updating contaminant monitoring lists to include personal care chemicals. The EU's updated Water Framework Directive now identifies several cosmetic ingredients as priority pollutants. That means your moisturizer is becoming a water policy problem.
+Environmental regulators in the EU and Canada are moving faster than the US on this. In February 2026, the EU updated its Water Framework Directive priority substances list to include pharmaceuticals, bisphenols, and PFAS for the first time — categories that overlap with several personal care ingredients, even where individual cosmetic chemicals aren't yet named outright. That means your moisturizer is edging closer to becoming a water policy problem, even if it isn't fully one yet.
 
 **What you can do**
 
@@ -28,3 +28,10 @@ You don't have to overhaul your entire routine. But a few swaps make a real diff
 There's also a bigger-picture move: rinse-off products — cleansers, conditioners, exfoliants — have more direct environmental exposure than leave-on products. Scrutinizing those first is the highest-leverage place to start.
 
 The water doesn't end with you. What you put on your skin doesn't stay there.
+
+## Sources
+
+- [Environment and Climate Change Canada, "Pharmaceuticals and personal care products in Canadian municipal wastewater and biosolids: occurrence, fate, and time trends 2010–2013 to 2022"](https://www.ncbi.nlm.nih.gov/pmc/articles/PMC11868229/), *Environmental Science and Pollution Research*, Feb. 2025 — the study referenced above.
+- [PMC review, "Removal of pharmaceuticals and personal care products (PPCPs) from wastewater"](https://pmc.ncbi.nlm.nih.gov/articles/PMC9960457/) — on average removal efficiency and why conventional treatment struggles with PPCPs.
+- [NPR, "FDA Bans Triclosan And 18 Other Chemicals From Soaps"](https://www.npr.org/sections/health-shots/2016/09/02/492394717/fda-bans-19-chemicals-used-in-antibacterial-soaps) — on the 2016 ban and the evidence behind it.
+- [Council of the EU, "Safeguarding water quality" press release](https://www.consilium.europa.eu/en/press/press-releases/2026/02/17/safeguarding-water-quality-council-signs-off-on-stricter-protection-rules-for-surface-water-and-groundwater/) — on the February 2026 Water Framework Directive update.
