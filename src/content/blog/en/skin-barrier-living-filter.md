@@ -29,5 +29,5 @@ Your skin isn't a wall to break through. It's a living system worth understandin
 
 ## Sources
 
-- [Menon, Cleary & Lane, "The Structure and Function of the Stratum Corneum"](https://www.nature.com/articles/emm19992.pdf) — review of Peter Elias's "bricks and mortar" model of the skin barrier.
+- [Menon, Cleary & Lane, "The Structure and Function of the Stratum Corneum"](https://doi.org/10.1016/j.ijpharm.2012.06.005) — review of Peter Elias's "bricks and mortar" model of the skin barrier.
 - [Ananthapadmanabhan et al., "Stratum corneum fatty acids: their critical role in preserving barrier integrity"](https://onlinelibrary.wiley.com/doi/full/10.1111/ics.12042), *International Journal of Cosmetic Science* — on ceramide, cholesterol, and fatty acid ratios in the lipid matrix.

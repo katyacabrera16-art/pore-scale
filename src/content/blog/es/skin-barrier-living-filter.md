@@ -29,5 +29,5 @@ Tu piel no es una pared que hay que romper. Es un sistema vivo que vale la pena 
 
 ## Fuentes
 
-- [Menon, Cleary & Lane, "The Structure and Function of the Stratum Corneum"](https://www.nature.com/articles/emm19992.pdf) — revisión del modelo de "ladrillos y mortero" de Peter Elias sobre la barrera cutánea.
+- [Menon, Cleary & Lane, "The Structure and Function of the Stratum Corneum"](https://doi.org/10.1016/j.ijpharm.2012.06.005) — revisión del modelo de "ladrillos y mortero" de Peter Elias sobre la barrera cutánea.
 - [Ananthapadmanabhan et al., "Stratum corneum fatty acids: their critical role in preserving barrier integrity"](https://onlinelibrary.wiley.com/doi/full/10.1111/ics.12042), *International Journal of Cosmetic Science* — sobre las proporciones de ceramidas, colesterol y ácidos grasos en la matriz lipídica.
