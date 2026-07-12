@@ -197,6 +197,15 @@ function iconSVG(iconType: string, size: number, stroke: string, cls = ''): stri
 				transition: background 0.2s;
 			}
 			.cta-button:hover { background: #1a7a68; }
+			.tool-teaser-link {
+				display: inline-block;
+				margin-top: 1rem;
+				font-size: 0.9rem;
+				font-weight: 600;
+				color: #ff6b6b;
+				text-decoration: none;
+			}
+			.tool-teaser-link:hover { text-decoration: underline; }
 
 			/* ── Floating icons ── */
 			.float-icon {
@@ -445,6 +454,7 @@ function iconSVG(iconType: string, size: number, stroke: string, cls = ''): stri
 					<h1>Better skincare begins with <span class="underline-group">better understanding<svg class="coral-underline" viewBox="0 0 260 8" preserveAspectRatio="none" aria-hidden="true"><path d="M2,6 Q65,1 130,5 Q195,9 258,3" stroke="#ff6b6b" stroke-width="2.5" fill="none" stroke-linecap="round"/></svg></span>.</h1>
 					<p class="hero-subtitle">Science-backed insights on ingredients, packaging, and the environmental footprint of beauty.</p>
 					<a class="cta-button" href="/blog">Start Reading</a>
+					<div><a class="tool-teaser-link" href="/claim-decoder">Try the Claim Decoder — scan a claim, check the ingredients →</a></div>
 				</section>
 
 				<!-- Ticker — items are jump links -->

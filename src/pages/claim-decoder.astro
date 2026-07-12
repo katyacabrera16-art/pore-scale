@@ -1,0 +1,1042 @@
+---
+// The Claim Decoder — an interactive tool that lets a visitor scan or type
+// a skincare marketing claim, then optionally scan the product's
+// ingredient list, and get an evidence-based read on whether the two
+// actually agree. All matching/evidence-state logic and content below is
+// unchanged from the tested prototype; this frontmatter + the Header/
+// Footer/BaseHead wiring is the only Astro-specific addition.
+import BaseHead from '../components/BaseHead.astro';
+import Header from '../components/Header.astro';
+import Footer from '../components/Footer.astro';
+import { SITE_TITLE } from '../consts';
+
+const pageTitle = `The Claim Decoder — ${SITE_TITLE}`;
+const pageDescription =
+	"Scan a skincare claim, then scan the ingredient list — get an evidence-based read on whether this specific product backs up what it says. Runs entirely on-device, no data ever leaves your browser.";
+---
+
+<html lang="en">
+<head>
+<BaseHead title={pageTitle} description={pageDescription} />
+<script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js" is:inline></script>
+<script src="/claims-data.js" is:inline></script>
+<style>
+  /* Component tokens aliased to the site's real design tokens (see
+     src/styles/global.css, loaded globally via BaseHead) rather than
+     hand-copied hex values, so this page stays in sync with the rest
+     of the site automatically. --coral / --amber / --teal / --white
+     are already defined globally and inherited as-is. */
+  :root{
+    --bg: var(--seafoam-light);
+    --card: var(--white);
+    --ink: var(--forest);
+    --ink-soft: var(--muted);
+    --coral-bg: color-mix(in srgb, var(--coral) 12%, white);
+    --amber-bg: color-mix(in srgb, var(--amber) 15%, white);
+    --teal-bg: var(--seafoam-mid);
+    --line: var(--seafoam-border);
+    --radius: 20px;
+  }
+  *{box-sizing:border-box;}
+  html{scroll-behavior:smooth;}
+  body{
+    margin:0;
+    background:var(--bg);
+    background-image: radial-gradient(circle, #d5e5e0 1px, transparent 1px);
+    background-size: 22px 22px;
+    color:var(--ink);
+    font-family:Georgia,'Times New Roman',serif;
+    -webkit-font-smoothing:antialiased;
+    position:relative;
+    overflow-x:hidden;
+  }
+  .blob{position:fixed; border-radius:50%; filter:blur(40px); z-index:0; pointer-events:none;}
+  .blob-1{width:340px;height:340px; top:-100px; right:-120px; background:var(--coral-bg); opacity:.55; animation:drift1 22s ease-in-out infinite alternate;}
+  .blob-2{width:280px;height:280px; bottom:0; left:-140px; background:var(--teal-bg); opacity:.6; animation:drift2 26s ease-in-out infinite alternate;}
+  @keyframes drift1{0%{transform:translate(0,0);}100%{transform:translate(-30px,40px);}}
+  @keyframes drift2{0%{transform:translate(0,0);}100%{transform:translate(30px,-30px);}}
+
+  .wrap{max-width:760px;margin:0 auto;padding:48px 24px 80px;position:relative;z-index:1;}
+
+  .brand{
+    font-family:Georgia,'Times New Roman',serif;font-weight:600;font-size:17px;
+    color:#1a3a34; letter-spacing:-.01em;
+  }
+  .brand-row{display:flex; align-items:center; justify-content:flex-end; margin-bottom:20px;}
+  .lang-toggle{display:flex; gap:2px; background:#eef4f2; padding:3px; border-radius:8px;}
+  .lang-btn{
+    border:none; background:transparent; padding:5px 11px; border-radius:6px;
+    font-family:Georgia,'Times New Roman',serif; font-size:12.5px; font-weight:700;
+    color:#4a7a72; cursor:pointer; letter-spacing:.03em; transition:all .15s ease;
+  }
+  .lang-btn.active{background:#fff; color:#1a3a34; box-shadow:0 1px 4px rgba(0,0,0,.08);}
+  .brand .scale{color:#2d9e88;}
+  .brand .dot-mark{
+    display:inline-block; width:6px; height:6px; border-radius:50%;
+    background:#ff6b6b; margin-left:4px; vertical-align:middle;
+    animation:pulse 2s ease-in-out infinite;
+  }
+  @keyframes pulse{0%,100%{opacity:1;}50%{opacity:.3;}}
+
+  .header-row{display:flex; align-items:flex-start; gap:14px; margin-bottom:8px;}
+  .flask-icon{flex-shrink:0; margin-top:6px; animation:bob 4s ease-in-out infinite;}
+  @keyframes bob{0%,100%{transform:translateY(0) rotate(-4deg);}50%{transform:translateY(-6px) rotate(4deg);}}
+
+  h1{
+    font-family:Georgia,'Times New Roman',serif;font-weight:700;font-size:clamp(36px,6vw,52px);
+    line-height:1.08;margin:0 0 14px; letter-spacing:-.01em;
+    opacity:0; transform:translateY(10px);
+    animation:riseIn .6s ease forwards .1s;
+  }
+  @keyframes riseIn{to{opacity:1; transform:translateY(0);}}
+  h1 .accent{color:var(--coral); position:relative; display:inline-block;}
+  h1 .accent svg{position:absolute; left:0; bottom:-6px; width:100%; height:10px; overflow:visible;}
+  h1 .accent path{stroke-dasharray:280; stroke-dashoffset:280; animation:draw 1s ease forwards .5s;}
+  @keyframes draw{to{stroke-dashoffset:0;}}
+
+  .sub{font-size:17px;line-height:1.55;color:var(--ink-soft);margin:0 0 32px;max-width:56ch;}
+
+  .mode-tabs{display:flex; gap:6px; background:#eef4f2; padding:5px; border-radius:14px; margin-bottom:22px; width:fit-content;}
+  .mode-tab{
+    border:none; background:transparent; padding:10px 18px; border-radius:10px;
+    font-family:Georgia,'Times New Roman',serif; font-size:14px; font-weight:600; color:var(--ink-soft);
+    cursor:pointer; transition:all .18s ease; display:flex; align-items:center; gap:7px;
+  }
+  .mode-tab.active{background:var(--card); color:var(--ink); box-shadow:0 2px 8px rgba(0,0,0,.06);}
+  .mode-tab:hover:not(.active){color:var(--ink);}
+
+  .panel{display:none;}
+  .panel.active{display:block; animation:fade .25s ease;}
+  @keyframes fade{from{opacity:0;}to{opacity:1;}}
+
+  .input-toggle{display:flex; gap:16px; margin-bottom:18px; align-items:center;}
+  .input-toggle-btn{
+    background:none; border:none; padding:6px 0; font-family:Georgia,'Times New Roman',serif;
+    font-size:14px; font-weight:600; color:var(--ink-soft); cursor:pointer;
+    border-bottom:2px solid transparent; transition:color .15s ease, border-color .15s ease;
+  }
+  .input-toggle-btn.active{color:var(--coral); border-color:var(--coral);}
+  .input-toggle-btn:hover:not(.active){color:var(--ink);}
+
+  .type-step{margin-bottom:20px;}
+  .type-step textarea{
+    width:100%; padding:14px 16px; font-size:15px; font-family:Georgia,'Times New Roman',serif;
+    border:1.5px solid var(--line); border-radius:14px; background:var(--card);
+    color:var(--ink); outline:none; resize:vertical; transition:border-color .15s ease, box-shadow .15s ease;
+    margin-bottom:12px; line-height:1.5;
+  }
+  .type-step textarea:focus{border-color:var(--coral); box-shadow:0 0 0 4px var(--coral-bg);}
+  .type-step textarea::placeholder{color:#8fada5;}
+  .input-hint{font-size:12.5px; color:var(--ink-soft); margin:-8px 0 12px;}
+
+  .search-box{position:relative;margin-bottom:24px;}
+  .search-box input{
+    width:100%;padding:16px 20px;font-size:16px;font-family:Georgia,'Times New Roman',serif;
+    border:1.5px solid var(--line);border-radius:14px;background:var(--card);
+    color:var(--ink);outline:none;transition:border-color .15s ease, box-shadow .15s ease;
+  }
+  .search-box input:focus{border-color:var(--coral); box-shadow:0 0 0 4px var(--coral-bg);}
+  .search-box input::placeholder{color:#8fada5;}
+
+  .chip-label{font-size:12px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-soft);margin:0 0 12px;}
+  .chips{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:40px;}
+  .chip{
+    padding:9px 16px;border-radius:999px;border:1.5px solid var(--line);
+    background:var(--card);font-family:Georgia,'Times New Roman',serif;font-size:14px;font-weight:500;
+    color:var(--ink);cursor:pointer;transition:transform .15s ease, box-shadow .15s ease, border-color .15s ease, color .15s ease, background .15s ease;
+  }
+  .chip:hover{border-color:var(--coral);color:var(--coral); transform:translateY(-2px); box-shadow:0 6px 14px rgba(255,110,86,.15);}
+  .chip.active{background:var(--coral);border-color:var(--coral);color:#fff; transform:translateY(-1px);}
+  .chip.hidden{display:none;}
+  .chip.pressed{animation:press .28s ease;}
+  @keyframes press{0%{transform:scale(1);}40%{transform:scale(.94);}100%{transform:scale(1);}}
+
+  .dropzone{
+    border:2px dashed var(--line); border-radius:18px; padding:32px 20px; text-align:center;
+    background:var(--card); cursor:pointer; transition:border-color .2s ease, background .2s ease;
+    margin-bottom:20px;
+  }
+  .dropzone:hover, .dropzone.dragover{border-color:var(--coral); background:var(--coral-bg);}
+  .dropzone:focus-visible{outline:3px solid var(--coral); outline-offset:2px;}
+  .file-error{color:#b33f3f; font-size:13px; font-weight:600; margin:10px 0 0;}
+  .sr-only{position:absolute; width:1px; height:1px; padding:0; margin:-1px; overflow:hidden; clip:rect(0,0,0,0); white-space:nowrap; border:0;}
+  .dropzone svg{margin-bottom:10px; animation:bob 3.5s ease-in-out infinite;}
+  .dropzone p{margin:0; font-size:15px; color:var(--ink-soft);}
+  .dropzone p.title{font-weight:600; color:var(--ink); font-size:16px; margin-bottom:4px;}
+  input[type=file]{display:none;}
+
+  .preview-wrap{position:relative; border-radius:16px; overflow:hidden; margin-bottom:16px; border:1.5px solid var(--line);}
+  .preview-wrap img{display:block; width:100%; max-height:340px; object-fit:cover;}
+  .scan-line{
+    position:absolute; left:0; right:0; height:3px; background:linear-gradient(90deg, transparent, var(--coral), transparent);
+    top:0; box-shadow:0 0 12px 2px var(--coral); display:none;
+  }
+  .scan-line.active{display:block; animation:scanmove 1.6s ease-in-out infinite;}
+  @keyframes scanmove{0%{top:0;}50%{top:calc(100% - 3px);}100%{top:0;}}
+
+  .scan-actions{display:flex; gap:10px; margin-bottom:24px; flex-wrap:wrap;}
+  .btn{
+    font-family:Georgia,'Times New Roman',serif; font-weight:600; font-size:14.5px; padding:12px 20px;
+    border-radius:12px; border:none; cursor:pointer; transition:transform .12s ease, opacity .12s ease;
+    display:inline-flex; align-items:center; gap:8px;
+  }
+  .btn:active{transform:scale(.97);}
+  .btn-primary{background:var(--coral); color:#fff;}
+  .btn-primary:disabled{opacity:.5; cursor:not-allowed;}
+  .btn-ghost{background:var(--card); color:var(--ink-soft); border:1.5px solid var(--line);}
+  .btn-sage{background:var(--teal); color:#fff;}
+
+  .scan-status{font-size:14px; color:var(--ink-soft); margin-bottom:16px; display:none; align-items:center; gap:8px;}
+  .scan-status.active{display:flex;}
+  .spinner{width:14px;height:14px;border:2px solid var(--coral-bg);border-top-color:var(--coral);border-radius:50%;animation:spin .7s linear infinite;}
+  @keyframes spin{to{transform:rotate(360deg);}}
+
+  #scanResults .card{margin-bottom:16px;}
+  .scan-empty{background:var(--teal-bg); border-radius:16px; padding:20px; font-size:14.5px; color:#1f6e5c; line-height:1.55;}
+
+  .ing-prompt{
+    background:var(--card); border:1.5px dashed var(--coral); border-radius:16px; padding:20px;
+    margin-bottom:20px; text-align:center;
+  }
+  .ing-prompt p{margin:0 0 12px; font-size:14.5px; color:var(--ink); line-height:1.5;}
+  .ing-prompt .claim-list{font-weight:700; color:var(--coral);}
+
+  .ing-check{
+    margin-top:18px; padding:16px 18px; border-radius:14px; font-size:14.5px; line-height:1.6;
+    animation:cardIn .3s ease;
+  }
+  .ing-check.pending{background:#f0f7f5; color:var(--ink-soft); font-style:italic;}
+  .ing-check.flagged{background:var(--coral-bg); color:#b33f3f; border:1.5px solid #f0b8b8;}
+  .ing-check.flagged h4{margin:0 0 6px; font-size:12.5px; text-transform:uppercase; letter-spacing:.06em; color:#b33f3f;}
+  .ing-check.clear{background:var(--teal-bg); color:#1f6e5c; border:1.5px solid #c8e0da;}
+  .ing-check.clear h4{margin:0 0 6px; font-size:12.5px; text-transform:uppercase; letter-spacing:.06em; color:#1f6e5c;}
+  .ing-check.info{background:var(--amber-bg); color:#8a6510; border:1.5px solid #e8c97a;}
+  .ing-check.info h4{margin:0 0 6px; font-size:12.5px; text-transform:uppercase; letter-spacing:.06em; color:#8a6510;}
+
+  #result{display:none;}
+  #result.show{display:block;animation:cardIn .3s ease;}
+  @keyframes cardIn{from{opacity:0;transform:translateY(10px) scale(.98);}to{opacity:1;transform:translateY(0) scale(1);}}
+
+  .card{background:var(--card);border-radius:var(--radius);padding:32px;border:1.5px solid var(--line); box-shadow:0 4px 20px rgba(43,38,32,.04);}
+
+  .evidence-banner{display:flex; gap:12px; align-items:flex-start; padding:16px 18px; border-radius:14px; margin-bottom:20px;}
+  .evidence-icon{font-size:22px; line-height:1;}
+  .evidence-label{font-weight:700; font-size:15px; margin-bottom:3px;}
+  .evidence-sub{font-size:13.5px; line-height:1.5; opacity:.9;}
+  .evidence-banner.sage{background:var(--teal-bg); color:#1f6e5c;}
+  .evidence-banner.coral{background:var(--coral-bg); color:#b33f3f;}
+  .evidence-banner.amber{background:var(--amber-bg); color:#8a6510;}
+  .evidence-banner.neutral{background:#eef4f2; color:#4a7a72;}
+  .ing-cta{background:#f0f7f5; border:1.5px dashed var(--line); border-radius:14px; padding:14px 16px; margin-top:20px; font-size:14px; color:var(--ink-soft); font-style:italic;}
+  .fragrance-note{background:var(--amber-bg); border-radius:14px; padding:14px 16px; margin-top:20px; font-size:14px; color:#8a6510; line-height:1.5;}
+  .card-footer{display:flex; flex-wrap:wrap; gap:6px 14px; font-size:12px; color:var(--ink-soft); margin-top:24px; padding-top:16px; border-top:1px solid var(--line);}
+  .card-footer a{color:var(--coral); text-decoration:underline;}
+  .confidence-note{font-size:11.5px; color:var(--ink-soft); font-style:italic; line-height:1.5;}
+  .source a{color:var(--coral); text-decoration:underline; word-break:break-word;}
+  .section ul{margin:0; padding-left:18px; font-size:15px; line-height:1.6; color:var(--ink);}
+  .section li{margin-bottom:4px;}
+  .badge{display:inline-flex;align-items:center;gap:6px;padding:6px 14px;border-radius:999px;font-size:12px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;margin-bottom:16px;}
+  .badge.unregulated{background:var(--coral-bg);color:#b33f3f;}
+  .badge.weak{background:var(--amber-bg);color:#8a6510;}
+  .badge.verified{background:var(--teal-bg);color:#1f6e5c;}
+  .card h2{font-family:Georgia,'Times New Roman',serif;font-weight:600;font-size:26px;margin:0 0 6px;}
+  .verdict{font-size:17px;line-height:1.5;color:var(--ink);font-weight:500;margin:0 0 24px;padding-bottom:20px;border-bottom:1px solid var(--line);}
+  .section{margin-bottom:20px;}
+  .section:last-of-type{margin-bottom:0;}
+  .section h3{font-size:12px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-soft);margin:0 0 6px;}
+  .section p{font-size:15.5px;line-height:1.6;margin:0;color:var(--ink);}
+  .section.catch h3{color:#b33f3f;}
+  .section.lookfor{background:var(--teal-bg);border-radius:14px;padding:16px 18px;margin-top:24px;}
+  .section.lookfor h3{color:#1f6e5c;}
+  .source{margin-top:22px;font-size:12.5px;color:var(--ink-soft);font-style:italic;}
+  .empty{text-align:center;padding:40px 20px;color:var(--ink-soft);font-size:14px;}
+  .tool-footer{margin-top:56px;padding-top:24px;border-top:1px solid var(--line);font-size:12.5px;line-height:1.6;color:var(--ink-soft);}
+  .terms-toggle{
+    background:none;border:none;padding:0;margin-top:14px;font-family:Georgia,'Times New Roman',serif;
+    font-size:12.5px;font-weight:600;color:var(--coral);cursor:pointer;text-decoration:underline;
+    text-underline-offset:2px;
+  }
+  .terms-full{max-height:0;overflow:hidden;transition:max-height .35s ease;}
+  .terms-full.open{max-height:600px;}
+  .terms-full-inner{padding-top:16px;}
+  .terms-full-inner p{margin:0 0 12px;}
+  .terms-full-inner ul{margin:0 0 12px;padding-left:18px;}
+  .terms-full-inner li{margin-bottom:8px;}
+  .disclaimer-main{margin:0 0 14px; font-size:12.5px; line-height:1.6;}
+  .privacy-line{margin:0 0 14px; font-size:12.5px; line-height:1.6; background:var(--teal-bg); color:#1f6e5c; padding:12px 14px; border-radius:12px;}
+</style>
+</head>
+<body>
+<Header />
+<div class="blob blob-1"></div>
+<div class="blob blob-2"></div>
+<div class="wrap">
+
+  <div class="brand-row">
+    <div class="lang-toggle" role="group" aria-label="Language / Idioma">
+      <button class="lang-btn active" id="langBtnEn" data-lang="en">EN</button>
+      <button class="lang-btn" id="langBtnEs" data-lang="es">ES</button>
+    </div>
+  </div>
+
+  <div class="header-row">
+    <svg class="flask-icon" width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#ff6b6b" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M12 2.69l5.66 5.66a8 8 0 1 1-11.31 0z"/>
+    </svg>
+    <h1><span data-i18n="h1part1">The Claim </span><span class="accent"><span data-i18n="h1part2">Decoder</span><svg viewBox="0 0 260 10" preserveAspectRatio="none"><path d="M2,6 Q65,1 130,5 Q195,9 258,3" stroke="#ff6b6b" stroke-width="3" fill="none" stroke-linecap="round"/></svg></span></h1>
+  </div>
+  <p class="sub" data-i18n="subtitle">Every skincare label makes promises. Some are regulated. Most aren't. Scan a claim, then scan the ingredient list — we'll tell you if this specific bottle backs up what it says.</p>
+
+  <div class="mode-tabs">
+    <button class="mode-tab active" data-mode="search" data-i18n="tabSearch">🔎 Search &amp; Browse</button>
+    <button class="mode-tab" data-mode="scan" data-i18n="tabCheck">🧴 Check a Product</button>
+  </div>
+
+  <div class="panel active" id="searchPanel">
+    <div class="search-box">
+      <label for="searchInput" class="sr-only" data-i18n="searchLabel">Search for a skincare claim</label>
+      <input type="text" id="searchInput" data-i18n-placeholder="searchPlaceholder" placeholder='Type a claim — e.g. "clean," "hypoallergenic," "reef safe"…' autocomplete="off">
+    </div>
+    <p class="chip-label" data-i18n="browseAll">Or browse all claims</p>
+    <div class="chips" id="chipContainer"></div>
+    <div id="result" aria-live="polite"></div>
+    <div class="empty" id="emptyState" role="status" data-i18n="emptyState">Nothing matches that yet — try a shorter word, or browse the list above.</div>
+  </div>
+
+  <div class="panel" id="scanPanel">
+
+    <div class="input-toggle">
+      <button class="input-toggle-btn active" data-input="scan" data-i18n="toggleScan">📸 Scan a Label</button>
+      <button class="input-toggle-btn" data-input="type" data-i18n="toggleType">⌨️ Type or Paste Instead</button>
+    </div>
+
+    <div id="scanInputPanel">
+      <div id="step1">
+        <div class="dropzone" id="dropzone1" tabindex="0" role="button" aria-label="Upload or take a photo of the claim on the front label">
+          <svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="#ff6b6b" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M4 7h3l1.5-2h7L17 7h3a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V8a1 1 0 0 1 1-1z"/>
+            <circle cx="12" cy="13" r="3.5"/>
+          </svg>
+          <p class="title" data-i18n="step1Title">Step 1 — Photo of the claim</p>
+          <p data-i18n="step1Sub">Front of bottle — "reef safe," "clean," "paraben-free," etc.</p>
+        </div>
+        <input type="file" id="fileInput1" accept="image/*" capture="environment">
+
+        <div id="previewSection1" style="display:none;">
+          <div class="preview-wrap">
+            <img id="previewImg1" src="" alt="Claim photo">
+            <div class="scan-line" id="scanLine1"></div>
+          </div>
+          <div class="scan-actions">
+            <button class="btn btn-primary" id="decodeBtn1" data-i18n="readPhoto">🔍 Read This Photo</button>
+            <button class="btn btn-ghost" id="retakeBtn1" data-i18n="tryAnother">Try another photo</button>
+          </div>
+        </div>
+        <div class="scan-status" id="scanStatus1"><span class="spinner"></span><span id="scanStatusText1" data-i18n="readingLabel">Reading the label…</span></div>
+      </div>
+    </div>
+
+    <div id="typeInputPanel" style="display:none;">
+      <div class="type-step">
+        <p class="chip-label" data-i18n="typeClaimLabel">Type or paste the claim</p>
+        <textarea id="claimTextInput" rows="3" data-i18n-placeholder="claimPlaceholder" placeholder='e.g. "Reef Safe" — or paste the full front-label text' aria-label="Claim text"></textarea>
+        <button class="btn btn-primary" id="analyzeClaimBtn" data-i18n="decodeClaim">✨ Decode This Claim</button>
+        <p class="input-hint" id="claimTextHint" role="status" aria-live="polite"></p>
+      </div>
+    </div>
+
+    <div id="scanResults" aria-live="polite"></div>
+    <div id="ingPromptWrap"></div>
+
+    <div id="step2" style="display:none;">
+      <p class="chip-label" style="margin-top:8px;" data-i18n="step2Title">Step 2 — Photo of the ingredient list</p>
+      <div class="dropzone" id="dropzone2" tabindex="0" role="button" aria-label="Upload or take a photo of the ingredient list">
+        <svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="#2d9e88" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M4 7h3l1.5-2h7L17 7h3a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V8a1 1 0 0 1 1-1z"/>
+          <circle cx="12" cy="13" r="3.5"/>
+        </svg>
+        <p class="title" data-i18n="ingPhotoTitle">Photo of the ingredient list</p>
+        <p data-i18n="ingPhotoSub">Usually on the back — the small-print INCI list</p>
+      </div>
+      <input type="file" id="fileInput2" accept="image/*" capture="environment">
+
+      <div id="previewSection2" style="display:none;">
+        <div class="preview-wrap">
+          <img id="previewImg2" src="" alt="Ingredient list photo">
+          <div class="scan-line" id="scanLine2"></div>
+        </div>
+        <div class="scan-actions">
+          <button class="btn btn-sage" id="decodeBtn2" data-i18n="readPhoto">🔍 Read This Photo</button>
+          <button class="btn btn-ghost" id="retakeBtn2" data-i18n="tryAnother">Try another photo</button>
+        </div>
+      </div>
+      <div class="scan-status" id="scanStatus2"><span class="spinner"></span><span id="scanStatusText2" data-i18n="readingIngredients">Reading the ingredient list…</span></div>
+    </div>
+
+    <div class="type-step" id="typeStep2" style="display:none;">
+      <p class="chip-label" data-i18n="typeIngLabel">Type or paste the ingredient list</p>
+      <textarea id="ingredientTextInput" rows="4" data-i18n-placeholder="ingPlaceholder" placeholder="Paste the ingredient list here (the INCI list, usually on the back)" aria-label="Ingredient list text"></textarea>
+      <button class="btn btn-sage" id="analyzeIngredientsBtn" data-i18n="checkIngredients">✨ Check Ingredients</button>
+      <p class="input-hint" id="ingredientTextHint" role="status" aria-live="polite"></p>
+    </div>
+
+  </div>
+
+  <div class="tool-footer">
+    <p class="disclaimer-main" data-i18n="disclaimerMain"><strong>Pore Scale is an independent educational tool.</strong> It analyzes only the information provided and does not independently audit brands, suppliers, manufacturing practices, certifications, or laboratory testing. Results are informational, may be incomplete, and are not medical, legal, or regulatory advice. Pore Scale does not diagnose conditions or determine whether a product is safe or effective for an individual. References to brands or claims are for educational analysis and are not intended to endorse or discredit any company.</p>
+
+    <p class="privacy-line" data-i18n="privacyLine">🔒 <strong>Your privacy:</strong> Photos you scan are processed entirely on your device using on-device text recognition (Tesseract.js) — they are never uploaded, stored, or sent to any server, ours or anyone else's. The only network request this tool makes is a one-time download of a generic, public language-recognition file (not your data), cached after first use.</p>
+
+    <button class="terms-toggle" id="termsToggle" data-i18n="termsToggle">How this works, in plain language ↓</button>
+    <div class="terms-full" id="termsFull">
+      <div class="terms-full-inner" data-i18n="termsFullInner">
+        <p><strong>A Note on How This Works</strong></p>
+        <p>We built the Claim Decoder to help you understand what's actually behind the words on a label — not to call anyone out. When you scan a claim and its ingredient list, we're just showing you what the text says, next to what current U.S. regulations actually require. That's it.</p>
+        <ul>
+          <li><strong>We're not making accusations.</strong> If an ingredient check flags something, that's information — not a verdict. Brands work within a regulatory system that leaves a lot of these words undefined; that's the actual problem we're pointing at, not any one company.</li>
+          <li><strong>Scanning isn't perfect.</strong> We read labels using on-device text recognition, and photos can be blurry, curved, or cut off. A "Supported" result means we didn't see a concern in what was legible — not a guarantee.</li>
+          <li><strong>This is here to inform, not to diagnose or advise.</strong> For anything about your skin, your health, or a legal question, a professional is always the better source than any app.</li>
+        </ul>
+        <p>We'd rather you leave here knowing more than you did — not more anxious than you were.</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<Footer />
+
+<script is:inline>
+
+let currentLang = 'en';
+
+const TIER_LABEL = {
+  en: {unregulated:"No Legal Definition", weak:"Real, But Weaker Than It Sounds", verified:"Independently Verified"},
+  es: {unregulated:"Sin Definición Legal", weak:"Real, Pero Más Débil De Lo Que Parece", verified:"Verificado De Forma Independiente"}
+};
+
+const VERIFICATION_LABELS_I18N = {
+  en: {
+    "ingredient-list check":"Ingredient-list check",
+    "partial ingredient-list check":"Partial ingredient-list check",
+    "certification required":"Certification required",
+    "testing required":"Product/formulation testing required",
+    "manufacturing or supplier evidence required":"Manufacturing/supplier evidence required",
+    "no uniform definition":"No uniform legal definition"
+  },
+  es: {
+    "ingredient-list check":"Verificación de lista de ingredientes",
+    "partial ingredient-list check":"Verificación parcial de lista de ingredientes",
+    "certification required":"Se requiere certificación",
+    "testing required":"Se requieren pruebas de producto/formulación",
+    "manufacturing or supplier evidence required":"Se requiere evidencia de fabricación/proveedor",
+    "no uniform definition":"Sin definición legal uniforme"
+  }
+};
+
+const EVIDENCE_STATES_I18N = {
+  en: {
+    cannotVerify: {label:'Cannot Be Verified From Ingredients Alone', icon:'❓', sub:'This claim depends on testing, certification, or manufacturing evidence — not something an ingredient list alone can confirm.'},
+    notEnough: {label:'Not Enough Information Yet', icon:'📋', sub:'Provide the ingredient list to check this specific product against this claim.'},
+    contradiction: {label:'Potential Contradiction Detected', icon:'⚠️', sub:'Something in the ingredient list you provided conflicts with this claim.'},
+    supported: {label:'Supported By What You Provided', icon:'✅', sub:"Nothing in the ingredient list you provided conflicts with this claim — within the limits of what's legible."}
+  },
+  es: {
+    cannotVerify: {label:'No Se Puede Verificar Solo Con Los Ingredientes', icon:'❓', sub:'Esta afirmación depende de pruebas, certificación o evidencia de fabricación — algo que una lista de ingredientes por sí sola no puede confirmar.'},
+    notEnough: {label:'Aún No Hay Suficiente Información', icon:'📋', sub:'Proporciona la lista de ingredientes para verificar este producto específico frente a esta afirmación.'},
+    contradiction: {label:'Posible Contradicción Detectada', icon:'⚠️', sub:'Algo en la lista de ingredientes que proporcionaste entra en conflicto con esta afirmación.'},
+    supported: {label:'Respaldado Por Lo Que Proporcionaste', icon:'✅', sub:'Nada en la lista de ingredientes que proporcionaste entra en conflicto con esta afirmación — dentro de los límites de lo legible.'}
+  }
+};
+
+const CONFIDENCE_I18N = { en: {High:"High", Medium:"Medium", Low:"Low"}, es: {High:"Alta", Medium:"Media", Low:"Baja"} };
+
+const STRINGS = {
+  en: {
+    h1part1:"The Claim ", h1part2:"Decoder",
+    subtitle:"Every skincare label makes promises. Some are regulated. Most aren't. Scan a claim, then scan the ingredient list — we'll tell you if this specific bottle backs up what it says.",
+    tabSearch:"🔎 Search & Browse", tabCheck:"🧴 Check a Product",
+    searchLabel:"Search for a skincare claim",
+    searchPlaceholder:'Type a claim — e.g. "clean," "hypoallergenic," "reef safe"…',
+    browseAll:"Or browse all claims",
+    emptyState:"Nothing matches that yet — try a shorter word, or browse the list above.",
+    toggleScan:"📸 Scan a Label", toggleType:"⌨️ Type or Paste Instead",
+    step1Title:"Step 1 — Photo of the claim",
+    step1Sub:'Front of bottle — "reef safe," "clean," "paraben-free," etc.',
+    readPhoto:"🔍 Read This Photo", tryAnother:"Try another photo",
+    readingLabel:"Reading the label…",
+    typeClaimLabel:"Type or paste the claim",
+    claimPlaceholder:'e.g. "Reef Safe" — or paste the full front-label text',
+    decodeClaim:"✨ Decode This Claim",
+    step2Title:"Step 2 — Photo of the ingredient list",
+    ingPhotoTitle:"Photo of the ingredient list",
+    ingPhotoSub:"Usually on the back — the small-print INCI list",
+    readingIngredients:"Reading the ingredient list…",
+    typeIngLabel:"Type or paste the ingredient list",
+    ingPlaceholder:"Paste the ingredient list here (the INCI list, usually on the back)",
+    checkIngredients:"✨ Check Ingredients",
+    disclaimerMain:'<strong>Pore Scale is an independent educational tool.</strong> It analyzes only the information provided and does not independently audit brands, suppliers, manufacturing practices, certifications, or laboratory testing. Results are informational, may be incomplete, and are not medical, legal, or regulatory advice. Pore Scale does not diagnose conditions or determine whether a product is safe or effective for an individual. References to brands or claims are for educational analysis and are not intended to endorse or discredit any company.',
+    privacyLine:'🔒 <strong>Your privacy:</strong> Photos you scan are processed entirely on your device using on-device text recognition (Tesseract.js) — they are never uploaded, stored, or sent to any server, ours or anyone else\'s. The only network request this tool makes is a one-time download of a generic, public language-recognition file (not your data), cached after first use.',
+    termsToggle:"How this works, in plain language ↓",
+    termsToggleOpen:"How this works, in plain language ↑",
+    termsFullInner:'<p><strong>A Note on How This Works</strong></p><p>We built the Claim Decoder to help you understand what\'s actually behind the words on a label — not to call anyone out. When you scan a claim and its ingredient list, we\'re just showing you what the text says, next to what current U.S. regulations actually require. That\'s it.</p><ul><li><strong>We\'re not making accusations.</strong> If an ingredient check flags something, that\'s information — not a verdict. Brands work within a regulatory system that leaves a lot of these words undefined; that\'s the actual problem we\'re pointing at, not any one company.</li><li><strong>Scanning isn\'t perfect.</strong> We read labels using on-device text recognition, and photos can be blurry, curved, or cut off. A "Supported" result means we didn\'t see a concern in what was legible — not a guarantee.</li><li><strong>This is here to inform, not to diagnose or advise.</strong> For anything about your skin, your health, or a legal question, a professional is always the better source than any app.</li></ul><p>We\'d rather you leave here knowing more than you did — not more anxious than you were.</p>',
+    scanClaimNoMatch:"We didn't find a claim in our database yet in that text. Try different wording, or use Search & Browse instead.",
+    typeSomethingFirst:"Type or paste something first — even just the claim word works.",
+    pasteSomethingFirst:"Paste the ingredient list first — even a partial list helps.",
+    noTextYet:"There's no text to analyze yet — type, paste, or scan a claim first.",
+    couldntReadClaim:"We couldn't read much from that photo — try better lighting or a closer, sharper shot. You can also just type the claim below.",
+    hereWhatWeReadClaim:"Here's what we read from your photo — check it over, fix anything wrong, then confirm below.",
+    somethingWrongClaim:"Something went wrong reading that photo. Try again, or just type the claim below.",
+    couldntReadIng:"We couldn't read much from that photo — try better lighting or a closer, sharper shot. You can also just paste the ingredient list below.",
+    hereWhatWeReadIng:"Here's what we read from your photo — check it over, fix anything wrong, then confirm below.",
+    somethingWrongIng:"Something went wrong reading that photo. Try again, or just paste the ingredient list below.",
+    scanIngredientNext:"Scan the ingredient list next.", pasteIngredientNext:"Paste the ingredient list next.",
+    wantToKnow:"Want to know if this bottle's ingredients actually back up",
+    verificationMethod:"Verification method:", confidence:"Confidence:", lastReviewed:"Last reviewed:",
+    confidenceNote:"Confidence reflects the completeness and quality of the available evidence. It does not indicate whether the product is safe, effective, or appropriate for an individual.",
+    source:"Source:",
+    whatItMeans:"What It Actually Means", theCatch:"The Catch", whatWeFound:"What We Found",
+    cannotEstablishHdr:"What Ingredients Alone Can't Establish", additionalEvidenceHdr:"Additional Evidence That Would Help",
+    lookFor:"Look For Instead", questionsHdr:"Questions You Could Ask the Brand", limitationsHdr:"Limitations",
+    provideIngredients:"Provide the ingredient list (scan or type it) to check this specific product against this claim.",
+    goodToKnow:"Good to Know", worthSecondLook:"Worth a Second Look",
+    foundInIngredients:"in the ingredient list you provided, which conflicts with the",
+    claimOnBottle:"claim on this product.",
+    commonEvenUnscented:"— common even in \"unscented\" products, and worth knowing if you're fragrance-sensitive.",
+    didntSpotFragrance:"We didn't spot fragrance or parfum in the ingredient list you provided.",
+    fileTypeError:"— please choose a photo (JPG, PNG, HEIC, etc.) instead.",
+    unrecognizedType:"a file type we don't recognize",
+    fileSizeError1:"That photo is", fileSizeError2:"MB — please choose one under 10MB (most phone camera photos are well under this)."
+  },
+  es: {
+    h1part1:"El Decodificador de ", h1part2:"Afirmaciones",
+    subtitle:"Cada etiqueta de cuidado de la piel hace promesas. Algunas están reguladas. La mayoría no. Escanea una afirmación, luego escanea la lista de ingredientes — te diremos si este envase en particular respalda lo que dice.",
+    tabSearch:"🔎 Buscar y Explorar", tabCheck:"🧴 Verificar un Producto",
+    searchLabel:"Buscar una afirmación de cuidado de la piel",
+    searchPlaceholder:'Escribe una afirmación — ej. "limpio," "hipoalergénico," "seguro para arrecifes"…',
+    browseAll:"O explora todas las afirmaciones",
+    emptyState:"Nada coincide todavía — prueba con una palabra más corta, o explora la lista de arriba.",
+    toggleScan:"📸 Escanear una Etiqueta", toggleType:"⌨️ Escribir o Pegar en su Lugar",
+    step1Title:"Paso 1 — Foto de la afirmación",
+    step1Sub:'Frente del envase — "seguro para arrecifes," "limpio," "libre de parabenos," etc.',
+    readPhoto:"🔍 Leer Esta Foto", tryAnother:"Probar otra foto",
+    readingLabel:"Leyendo la etiqueta…",
+    typeClaimLabel:"Escribe o pega la afirmación",
+    claimPlaceholder:'ej. "Seguro para Arrecifes" — o pega el texto completo de la etiqueta frontal',
+    decodeClaim:"✨ Decodificar Esta Afirmación",
+    step2Title:"Paso 2 — Foto de la lista de ingredientes",
+    ingPhotoTitle:"Foto de la lista de ingredientes",
+    ingPhotoSub:"Usualmente en la parte trasera — la lista INCI en letra pequeña",
+    readingIngredients:"Leyendo la lista de ingredientes…",
+    typeIngLabel:"Escribe o pega la lista de ingredientes",
+    ingPlaceholder:"Pega la lista de ingredientes aquí (la lista INCI, usualmente en la parte trasera)",
+    checkIngredients:"✨ Verificar Ingredientes",
+    disclaimerMain:'<strong>Pore Scale es una herramienta educativa independiente.</strong> Analiza únicamente la información proporcionada y no audita de forma independiente marcas, proveedores, prácticas de fabricación, certificaciones o pruebas de laboratorio. Los resultados son informativos, pueden estar incompletos, y no constituyen asesoría médica, legal o regulatoria. Pore Scale no diagnostica condiciones ni determina si un producto es seguro o eficaz para una persona en particular. Las referencias a marcas o afirmaciones son para análisis educativo y no pretenden respaldar ni desacreditar a ninguna empresa.',
+    privacyLine:'🔒 <strong>Tu privacidad:</strong> Las fotos que escaneas se procesan completamente en tu dispositivo usando reconocimiento de texto local (Tesseract.js) — nunca se suben, almacenan ni envían a ningún servidor, ni nuestro ni de nadie más. La única solicitud de red que hace esta herramienta es una descarga única de un archivo genérico y público de reconocimiento de idioma (no tus datos), guardado en caché tras el primer uso.',
+    termsToggle:"Cómo funciona esto, en lenguaje sencillo ↓",
+    termsToggleOpen:"Cómo funciona esto, en lenguaje sencillo ↑",
+    termsFullInner:'<p><strong>Una Nota Sobre Cómo Funciona Esto</strong></p><p>Creamos el Decodificador de Afirmaciones para ayudarte a entender qué hay realmente detrás de las palabras de una etiqueta — no para señalar a nadie. Cuando escaneas una afirmación y su lista de ingredientes, simplemente te mostramos lo que dice el texto, junto a lo que exigen realmente las regulaciones actuales de EE. UU. Eso es todo.</p><ul><li><strong>No estamos haciendo acusaciones.</strong> Si una verificación de ingredientes marca algo, eso es información — no un veredicto. Las marcas operan dentro de un sistema regulatorio que deja muchas de estas palabras sin definir; ese es el problema real que señalamos, no ninguna empresa en particular.</li><li><strong>Escanear no es perfecto.</strong> Leemos las etiquetas usando reconocimiento de texto en el dispositivo, y las fotos pueden salir borrosas, curvas o cortadas. Un resultado "Respaldado" significa que no vimos ningún problema en lo que era legible — no es una garantía.</li><li><strong>Esto existe para informar, no para diagnosticar ni asesorar.</strong> Para cualquier cosa sobre tu piel, tu salud o una pregunta legal, un profesional siempre es mejor fuente que cualquier aplicación.</li></ul><p>Preferimos que salgas de aquí sabiendo más de lo que sabías — no más ansioso de lo que estabas.</p>',
+    scanClaimNoMatch:"No encontramos ninguna afirmación en nuestra base de datos en ese texto todavía. Intenta con otras palabras, o usa Buscar y Explorar.",
+    typeSomethingFirst:"Escribe o pega algo primero — incluso solo la palabra de la afirmación funciona.",
+    pasteSomethingFirst:"Pega la lista de ingredientes primero — incluso una lista parcial ayuda.",
+    noTextYet:"Todavía no hay texto para analizar — escribe, pega o escanea una afirmación primero.",
+    couldntReadClaim:"No pudimos leer mucho de esa foto — intenta con mejor iluminación o una toma más cercana y nítida. También puedes simplemente escribir la afirmación abajo.",
+    hereWhatWeReadClaim:"Esto es lo que leímos de tu foto — revísalo, corrige lo que esté mal, y luego confirma abajo.",
+    somethingWrongClaim:"Algo salió mal al leer esa foto. Intenta de nuevo, o simplemente escribe la afirmación abajo.",
+    couldntReadIng:"No pudimos leer mucho de esa foto — intenta con mejor iluminación o una toma más cercana y nítida. También puedes simplemente pegar la lista de ingredientes abajo.",
+    hereWhatWeReadIng:"Esto es lo que leímos de tu foto — revísalo, corrige lo que esté mal, y luego confirma abajo.",
+    somethingWrongIng:"Algo salió mal al leer esa foto. Intenta de nuevo, o simplemente pega la lista de ingredientes abajo.",
+    scanIngredientNext:"Escanea la lista de ingredientes a continuación.", pasteIngredientNext:"Pega la lista de ingredientes a continuación.",
+    wantToKnow:"¿Quieres saber si los ingredientes de este envase realmente respaldan",
+    verificationMethod:"Método de verificación:", confidence:"Confianza:", lastReviewed:"Última revisión:",
+    confidenceNote:"La confianza refleja la integridad y calidad de la evidencia disponible. No indica si el producto es seguro, eficaz o adecuado para una persona en particular.",
+    source:"Fuente:",
+    whatItMeans:"Qué Significa Realmente", theCatch:"La Trampa", whatWeFound:"Qué Encontramos",
+    cannotEstablishHdr:"Qué No Pueden Establecer Solo Los Ingredientes", additionalEvidenceHdr:"Evidencia Adicional Que Ayudaría",
+    lookFor:"Busca Esto En Su Lugar", questionsHdr:"Preguntas Que Podrías Hacerle a la Marca", limitationsHdr:"Limitaciones",
+    provideIngredients:"Proporciona la lista de ingredientes (escanéala o escríbela) para verificar este producto específico frente a esta afirmación.",
+    goodToKnow:"Bueno Saberlo", worthSecondLook:"Vale la Pena Revisar",
+    foundInIngredients:"en la lista de ingredientes que proporcionaste, lo cual entra en conflicto con la afirmación",
+    claimOnBottle:"de este producto.",
+    commonEvenUnscented:'— común incluso en productos "sin aroma," y vale la pena saberlo si eres sensible a las fragancias.',
+    didntSpotFragrance:"No detectamos fragancia ni parfum en la lista de ingredientes que proporcionaste.",
+    fileTypeError:"— por favor elige una foto (JPG, PNG, HEIC, etc.) en su lugar.",
+    unrecognizedType:"un tipo de archivo que no reconocemos",
+    fileSizeError1:"Esa foto pesa", fileSizeError2:"MB — por favor elige una de menos de 10MB (la mayoría de las fotos de cámara de teléfono son mucho menores)."
+  }
+};
+
+function applyLanguage(lang){
+  currentLang = lang;
+  document.documentElement.lang = lang;
+  document.getElementById('langBtnEn').classList.toggle('active', lang==='en');
+  document.getElementById('langBtnEs').classList.toggle('active', lang==='es');
+
+  document.querySelectorAll('[data-i18n]').forEach(el=>{
+    const key = el.dataset.i18n;
+    const val = STRINGS[lang][key];
+    if(val === undefined) return;
+    if(key === 'disclaimerMain' || key === 'privacyLine' || key === 'termsFullInner'){
+      el.innerHTML = val;
+    } else {
+      el.textContent = val;
+    }
+  });
+  document.querySelectorAll('[data-i18n-placeholder]').forEach(el=>{
+    const key = el.dataset.i18nPlaceholder;
+    if(STRINGS[lang][key] !== undefined) el.placeholder = STRINGS[lang][key];
+  });
+
+  const termsBtn = document.getElementById('termsToggle');
+  const isOpen = document.getElementById('termsFull').classList.contains('open');
+  termsBtn.textContent = isOpen ? STRINGS[lang].termsToggleOpen : STRINGS[lang].termsToggle;
+
+  // Re-render dynamic content (chips + any visible cards) in the new language
+  renderChips();
+  if(resultEl.classList.contains('show')){
+    const activeChip = document.querySelector('.chip.active');
+    if(activeChip) renderCard(CLAIMS[Number(activeChip.dataset.index)]);
+  }
+  if(matchedClaims.length){
+    document.getElementById('scanResults').innerHTML = matchedClaims.map(i=>cardHTML(CLAIMS[i], i)).join('');
+  }
+}
+
+document.getElementById('langBtnEn').addEventListener('click', ()=>applyLanguage('en'));
+document.getElementById('langBtnEs').addEventListener('click', ()=>applyLanguage('es'));
+
+// Strips accents properly (é→e, ñ→n) instead of deleting the character
+// entirely, which was the bug: "hipoalergénico" was becoming
+// "hipoalerg nico" (character gone) rather than "hipoalergenico"
+// (accent gone). This matters for every Spanish-language alias.
+function normalizeText(str){
+  return str.normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().replace(/[^a-z0-9\s%-]/g,' ').replace(/\s+/g,' ').trim();
+}
+
+// Targets specific, common OCR misreads (0/o, 1/l, 5/s, 8/b) — NOT a
+// general typo corrector. A broader fuzzy/edit-distance matcher risks
+// false positives (matching things that aren't actually there), which
+// is worse than missing a real OCR error. This stays narrow on purpose.
+function ocrFuzzyVariant(str){
+  return str.replace(/0/g,'o').replace(/1/g,'l').replace(/5/g,'s').replace(/8/g,'b');
+}
+
+// The single place alias matching happens — used everywhere so the
+// exact-match and fuzzy-match behavior stays consistent across search,
+// claim analysis, and ingredient checks.
+function matchesAlias(normalizedText, alias){
+  const na = normalizeText(alias);
+  if(normalizedText.includes(na)) return true;
+  // Always try the fuzzy fallback too — the OCR misread (a digit standing
+  // in for a letter) happens in the SCANNED text, not in our stored,
+  // correctly-spelled alias, so gating on the alias alone would miss
+  // exactly the cases this exists to catch.
+  return ocrFuzzyVariant(normalizedText).includes(ocrFuzzyVariant(na));
+}
+
+const chipContainer = document.getElementById('chipContainer');
+const resultEl = document.getElementById('result');
+const emptyEl = document.getElementById('emptyState');
+const searchInput = document.getElementById('searchInput');
+
+function renderChips(){
+  chipContainer.innerHTML = '';
+  CLAIMS.forEach((c,i)=>{
+    const chip = document.createElement('button');
+    chip.className='chip';
+    chip.textContent = (currentLang === 'es' && c.es) ? c.es.name : c.name;
+    chip.dataset.index=i;
+    chip.addEventListener('click',()=>{ chip.classList.add('pressed'); setTimeout(()=>chip.classList.remove('pressed'),280); selectClaim(i); });
+    chipContainer.appendChild(chip);
+  });
+}
+renderChips();
+
+// Returns a claim's content field in the current language, falling back
+// to English if a Spanish field is somehow missing — never show a blank.
+function cc(c, field){
+  if(currentLang === 'es' && c.es && c.es[field] !== undefined) return c.es[field];
+  return c[field];
+}
+
+// A claim is only "checkable" toward a real verdict if it has a
+// contradiction-mode ingredient check. Informational-only checks (like
+// Unscented's fragrance note) don't drive the headline evidence state —
+// they're bonus context, not a verifiable claim.
+function isCheckable(c){
+  return !!(c.redFlagCheck && c.redFlagCheck.mode === 'contradiction');
+}
+
+function getEvidenceState(c, ingredientChecked, hits){
+  const t = EVIDENCE_STATES_I18N[currentLang];
+  if(!isCheckable(c)) return {state:'cannot-verify', cls:'amber', ...t.cannotVerify};
+  if(!ingredientChecked) return {state:'not-enough-info', cls:'neutral', ...t.notEnough};
+  if(hits.length) return {state:'contradiction', cls:'coral', ...t.contradiction};
+  return {state:'supported', cls:'sage', ...t.supported};
+}
+
+function getConfidence(c, ingredientChecked){
+  if(!isCheckable(c) || !ingredientChecked) return 'Low';
+  return c.verificationMethod === 'ingredient-list check' ? 'High' : 'Medium';
+}
+
+function cardHTML(c, idx){
+  const S = STRINGS[currentLang];
+  const checkResult = ingredientCheckResults[idx];
+  const hits = checkResult ? checkResult.hits : [];
+  const es = getEvidenceState(c, !!checkResult, hits);
+  const confidence = CONFIDENCE_I18N[currentLang][getConfidence(c, !!checkResult)];
+  const name = cc(c, 'name');
+
+  let evidenceDetail = '';
+  if(es.state === 'contradiction'){
+    evidenceDetail = `<div class="section catch"><h3>${S.whatWeFound}</h3><p>${currentLang==='es' ? 'Detectamos' : 'We detected'} <strong>${hits.join(', ')}</strong> ${S.foundInIngredients} "${name}" ${S.claimOnBottle}</p></div>`;
+  }
+
+  let fragranceNote = '';
+  if(c.redFlagCheck && c.redFlagCheck.mode === 'info' && checkResult){
+    fragranceNote = hits.length
+      ? `<div class="fragrance-note"><strong>${S.goodToKnow}:</strong> ${currentLang==='es' ? 'esta lista de ingredientes sí incluye' : 'this ingredient list does include'} ${hits.join(', ')} ${S.commonEvenUnscented}</div>`
+      : `<div class="fragrance-note">${S.didntSpotFragrance}</div>`;
+  }
+
+  const ingCta = (isCheckable(c) && !checkResult)
+    ? `<div class="ing-cta">${S.provideIngredients}</div>` : '';
+
+  const questionsHTML = (cc(c, 'questionsForBrand') || []).map(q=>`<li>${q}</li>`).join('');
+
+  return `
+    <div class="card" id="card-${idx}">
+      <div class="evidence-banner ${es.cls}">
+        <span class="evidence-icon">${es.icon}</span>
+        <div>
+          <div class="evidence-label">${es.label}</div>
+          <div class="evidence-sub">${es.sub}</div>
+        </div>
+      </div>
+      <span class="badge ${c.tier}">${TIER_LABEL[currentLang][c.tier]}</span>
+      <h2>${name}</h2>
+      <p class="verdict">${cc(c, 'verdict')}</p>
+      <div class="section"><h3>${S.whatItMeans}</h3><p>${cc(c, 'meaning')}</p></div>
+      <div class="section catch"><h3>${S.theCatch}</h3><p>${cc(c, 'theCatch')}</p></div>
+      ${evidenceDetail}
+      ${fragranceNote}
+      <div class="section"><h3>${S.cannotEstablishHdr}</h3><p>${cc(c, 'cannotEstablish')}</p></div>
+      <div class="section"><h3>${S.additionalEvidenceHdr}</h3><p>${cc(c, 'additionalEvidence')}</p></div>
+      <div class="section lookfor"><h3>${S.lookFor}</h3><p>${cc(c, 'lookFor')}</p></div>
+      ${questionsHTML ? `<div class="section"><h3>${S.questionsHdr}</h3><ul>${questionsHTML}</ul></div>` : ''}
+      <div class="section"><h3>${S.limitationsHdr}</h3><p>${cc(c, 'limitations')}</p></div>
+      ${ingCta}
+      <div class="card-footer">
+        <div style="width:100%; margin-bottom:6px;">
+          <span>${S.verificationMethod} ${VERIFICATION_LABELS_I18N[currentLang][c.verificationMethod] || c.verificationMethod}</span>
+          <span>·</span><span>${S.confidence} ${confidence}</span>
+          <span>·</span><span>${S.lastReviewed} ${c.lastReviewed}</span>
+        </div>
+        <div class="confidence-note">${S.confidenceNote}</div>
+      </div>
+      <p class="source">${S.source} <a href="${c.sourceUrl}" target="_blank" rel="noopener noreferrer">${c.source}</a></p>
+    </div>
+  `;
+}
+
+
+function renderCard(c){
+  resultEl.innerHTML = cardHTML(c, 'search');
+  resultEl.classList.add('show');
+  emptyEl.style.display='none';
+}
+
+function selectClaim(i){
+  document.querySelectorAll('.chip').forEach(el=>el.classList.remove('active'));
+  const chip = chipContainer.querySelector(`[data-index="${i}"]`);
+  if(chip) chip.classList.add('active');
+  renderCard(CLAIMS[i]);
+  resultEl.scrollIntoView({behavior:'smooth', block:'nearest'});
+}
+
+searchInput.addEventListener('input', ()=>{
+  const q = searchInput.value.trim().toLowerCase();
+  let anyVisible = false;
+  document.querySelectorAll('.chip').forEach((chip,i)=>{
+    const c = CLAIMS[i];
+    const match = !q || normalizeText(cc(c,'name')).includes(normalizeText(q)) || c.aliases.some(a=>normalizeText(a).includes(normalizeText(q)));
+    chip.classList.toggle('hidden', !match);
+    if(match) anyVisible = true;
+  });
+  emptyEl.style.display = (!anyVisible && q) ? 'block' : 'none';
+});
+searchInput.addEventListener('keydown', (e)=>{
+  if(e.key==='Enter'){
+    const q = searchInput.value.trim().toLowerCase();
+    const idx = CLAIMS.findIndex(c=>normalizeText(cc(c,'name')).includes(normalizeText(q)) || c.aliases.some(a=>normalizeText(a).includes(normalizeText(q))));
+    if(idx>-1) selectClaim(idx);
+  }
+});
+selectClaim(0);
+
+document.querySelectorAll('.mode-tab').forEach(tab=>{
+  tab.addEventListener('click', ()=>{
+    document.querySelectorAll('.mode-tab').forEach(t=>t.classList.remove('active'));
+    tab.classList.add('active');
+    const mode = tab.dataset.mode;
+    document.getElementById('searchPanel').classList.toggle('active', mode==='search');
+    document.getElementById('scanPanel').classList.toggle('active', mode==='scan');
+  });
+});
+
+/* ---------- SCAN STEP 1: the claim ---------- */
+let matchedClaims = [];
+let ingredientCheckResults = {}; // {claimIndex: {checked:true, hits:[...names]}} — read by cardHTML() to render the evidence banner
+let inputMode = 'scan';
+let lastClaimSource = 'scan'; // tracks HOW the current claim text arrived — a photo (even if we're now showing it in the review box) or genuine manual typing. Keeps the ingredient step defaulting to "scan" for photo-based claims, so scanning the front label doesn't force someone into typing the (much longer) ingredient list too.
+
+// Shared analysis logic — used by BOTH the scan flow (after OCR) and the
+// typed/pasted flow. This is the core Stage 1 principle: the *source* of
+// the text (photo vs. keyboard) shouldn't change how it gets evaluated.
+function analyzeClaimText(rawText){
+  const S = STRINGS[currentLang];
+  const normalized = normalizeText(rawText);
+
+  if(!normalized){
+    document.getElementById('scanResults').innerHTML = `<div class="scan-empty">${S.noTextYet}</div>`;
+    document.getElementById('ingPromptWrap').innerHTML = '';
+    document.getElementById('step2').style.display = 'none';
+    document.getElementById('typeStep2').style.display = 'none';
+    return;
+  }
+
+  matchedClaims = [];
+  ingredientCheckResults = {};
+  CLAIMS.forEach((c,i)=>{
+    if(c.aliases.some(a => matchesAlias(normalized, a))) matchedClaims.push(i);
+  });
+
+  document.getElementById('ingPromptWrap').innerHTML = '';
+  document.getElementById('step2').style.display = 'none';
+  document.getElementById('typeStep2').style.display = 'none';
+
+  if(matchedClaims.length){
+    document.getElementById('scanResults').innerHTML = matchedClaims.map(i=>cardHTML(CLAIMS[i], i)).join('');
+    const needsIngredientCheck = matchedClaims.filter(i=>CLAIMS[i].redFlagCheck);
+    if(needsIngredientCheck.length){
+      const names = needsIngredientCheck.map(i=>cc(CLAIMS[i],'name')).join(', ');
+      const howTo = lastClaimSource === 'scan' ? S.scanIngredientNext : S.pasteIngredientNext;
+      document.getElementById('ingPromptWrap').innerHTML = `
+        <div class="ing-prompt">
+          <p>${S.wantToKnow} <span class="claim-list">${names}</span>? ${howTo}</p>
+        </div>`;
+      if(lastClaimSource === 'scan'){ document.getElementById('step2').style.display = 'block'; }
+      else { document.getElementById('typeStep2').style.display = 'block'; }
+    }
+  } else {
+    document.getElementById('scanResults').innerHTML = `<div class="scan-empty">${S.scanClaimNoMatch}</div>`;
+  }
+}
+
+function analyzeIngredientText(rawText){
+  const normalized = normalizeText(rawText);
+  if(!normalized) return;
+
+  matchedClaims.forEach(i=>{
+    const c = CLAIMS[i];
+    if(!c.redFlagCheck) return;
+    const hits = c.redFlagCheck.ingredients
+      .filter(ing => ing.aliases.some(a => matchesAlias(normalized, a)))
+      .map(ing => ing.name);
+    ingredientCheckResults[i] = {checked:true, hits};
+  });
+
+  // Re-render every matched card so each one's evidence banner reflects
+  // the just-completed check — not just the claims that had a hit.
+  document.getElementById('scanResults').innerHTML = matchedClaims.map(i=>cardHTML(CLAIMS[i], i)).join('');
+  document.getElementById('ingPromptWrap').innerHTML = '';
+  document.getElementById('step2').style.display = 'none';
+  document.getElementById('typeStep2').style.display = 'none';
+}
+
+const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB — generous for a phone photo, protects against accidental huge uploads
+
+function wireDropzone(zoneId, inputId, previewSectionId, previewImgId){
+  const zone = document.getElementById(zoneId);
+  const input = document.getElementById(inputId);
+  zone.addEventListener('click', ()=>input.click());
+  zone.addEventListener('keydown', e=>{
+    if(e.key === 'Enter' || e.key === ' '){ e.preventDefault(); input.click(); }
+  });
+  zone.addEventListener('dragover', e=>{e.preventDefault(); zone.classList.add('dragover');});
+  zone.addEventListener('dragleave', ()=>zone.classList.remove('dragover'));
+  zone.addEventListener('drop', e=>{
+    e.preventDefault(); zone.classList.remove('dragover');
+    if(e.dataTransfer.files[0]) validateAndLoad(e.dataTransfer.files[0], zoneId, previewSectionId, previewImgId);
+  });
+  input.addEventListener('change', ()=>{ if(input.files[0]) validateAndLoad(input.files[0], zoneId, previewSectionId, previewImgId); });
+}
+
+function validateAndLoad(file, zoneId, previewSectionId, previewImgId){
+  const S = STRINGS[currentLang];
+  const zone = document.getElementById(zoneId);
+  const existingError = zone.querySelector('.file-error');
+  if(existingError) existingError.remove();
+
+  if(!file.type.startsWith('image/')){
+    const err = document.createElement('p');
+    err.className = 'file-error';
+    err.textContent = `${currentLang==='es' ? 'Eso es' : "That's a"} ${file.type || S.unrecognizedType} ${S.fileTypeError}`;
+    zone.appendChild(err);
+    return;
+  }
+  if(file.size > MAX_FILE_SIZE){
+    const err = document.createElement('p');
+    err.className = 'file-error';
+    err.textContent = `${S.fileSizeError1} ${(file.size / (1024*1024)).toFixed(1)}${S.fileSizeError2}`;
+    zone.appendChild(err);
+    return;
+  }
+  loadPreview(file, zoneId, previewSectionId, previewImgId);
+}
+
+function loadPreview(file, zoneId, previewSectionId, previewImgId){
+  document.getElementById(previewImgId).src = URL.createObjectURL(file);
+  document.getElementById(zoneId).style.display='none';
+  document.getElementById(previewSectionId).style.display='block';
+}
+
+wireDropzone('dropzone1','fileInput1','previewSection1','previewImg1');
+wireDropzone('dropzone2','fileInput2','previewSection2','previewImg2');
+
+document.getElementById('retakeBtn1').addEventListener('click', ()=>{
+  document.getElementById('previewSection1').style.display='none';
+  document.getElementById('dropzone1').style.display='block';
+  document.getElementById('fileInput1').value='';
+});
+document.getElementById('retakeBtn2').addEventListener('click', ()=>{
+  document.getElementById('previewSection2').style.display='none';
+  document.getElementById('dropzone2').style.display='block';
+  document.getElementById('fileInput2').value='';
+});
+
+document.getElementById('decodeBtn1').addEventListener('click', async ()=>{
+  const S = STRINGS[currentLang];
+  const btn = document.getElementById('decodeBtn1');
+  const status = document.getElementById('scanStatus1');
+  btn.disabled = true;
+  document.getElementById('scanLine1').classList.add('active');
+  status.classList.add('active');
+  document.getElementById('scanStatusText1').textContent = S.readingLabel;
+  document.getElementById('scanResults').innerHTML = '';
+  document.getElementById('ingPromptWrap').innerHTML = '';
+  document.getElementById('step2').style.display = 'none';
+
+  try{
+    const { data: { text } } = await Tesseract.recognize(document.getElementById('previewImg1').src, 'eng');
+    const cleaned = text.trim();
+    const claimBox = document.getElementById('claimTextInput');
+    const hint = document.getElementById('claimTextHint');
+    claimBox.value = cleaned;
+    setInputMode('type');
+    lastClaimSource = 'scan';
+    if(cleaned.replace(/[^a-zA-Z]/g,'').length < 4){
+      hint.textContent = S.couldntReadClaim;
+    } else {
+      hint.textContent = S.hereWhatWeReadClaim;
+    }
+    claimBox.focus();
+  } catch(err){
+    setInputMode('type');
+    document.getElementById('claimTextHint').textContent = S.somethingWrongClaim;
+  } finally {
+    document.getElementById('scanLine1').classList.remove('active');
+    status.classList.remove('active');
+    btn.disabled = false;
+  }
+});
+
+/* ---------- TYPED CLAIM INPUT ---------- */
+document.getElementById('analyzeClaimBtn').addEventListener('click', ()=>{
+  const val = document.getElementById('claimTextInput').value;
+  const hint = document.getElementById('claimTextHint');
+  if(!val.trim()){
+    hint.textContent = STRINGS[currentLang].typeSomethingFirst;
+    return;
+  }
+  hint.textContent = '';
+  analyzeClaimText(val);
+});
+
+/* ---------- SCAN STEP 2: the ingredients ---------- */
+document.getElementById('decodeBtn2').addEventListener('click', async ()=>{
+  const S = STRINGS[currentLang];
+  const btn = document.getElementById('decodeBtn2');
+  const status = document.getElementById('scanStatus2');
+  btn.disabled = true;
+  document.getElementById('scanLine2').classList.add('active');
+  status.classList.add('active');
+  document.getElementById('scanStatusText2').textContent = S.readingIngredients;
+
+  try{
+    const { data: { text } } = await Tesseract.recognize(document.getElementById('previewImg2').src, 'eng');
+    const cleaned = text.trim();
+    const ingBox = document.getElementById('ingredientTextInput');
+    const hint = document.getElementById('ingredientTextHint');
+    ingBox.value = cleaned;
+    document.getElementById('step2').style.display = 'none';
+    document.getElementById('typeStep2').style.display = 'block';
+    if(cleaned.replace(/[^a-zA-Z]/g,'').length < 4){
+      hint.textContent = S.couldntReadIng;
+    } else {
+      hint.textContent = S.hereWhatWeReadIng;
+    }
+    ingBox.focus();
+  } catch(err){
+    document.getElementById('step2').style.display = 'none';
+    document.getElementById('typeStep2').style.display = 'block';
+    document.getElementById('ingredientTextHint').textContent = S.somethingWrongIng;
+  } finally {
+    document.getElementById('scanLine2').classList.remove('active');
+    status.classList.remove('active');
+    btn.disabled = false;
+  }
+});
+
+/* ---------- TYPED INGREDIENT INPUT ---------- */
+document.getElementById('analyzeIngredientsBtn').addEventListener('click', ()=>{
+  const val = document.getElementById('ingredientTextInput').value;
+  const hint = document.getElementById('ingredientTextHint');
+  if(!val.trim()){
+    hint.textContent = STRINGS[currentLang].pasteSomethingFirst;
+    return;
+  }
+  hint.textContent = '';
+  analyzeIngredientText(val);
+  document.getElementById('scanResults').scrollIntoView({behavior:'smooth', block:'start'});
+});
+
+/* ---------- INPUT MODE TOGGLE (scan vs. type) ---------- */
+function setInputMode(mode){
+  inputMode = mode;
+  document.querySelectorAll('.input-toggle-btn').forEach(b=>b.classList.toggle('active', b.dataset.input === mode));
+  document.getElementById('scanInputPanel').style.display = mode === 'scan' ? 'block' : 'none';
+  document.getElementById('typeInputPanel').style.display = mode === 'type' ? 'block' : 'none';
+}
+
+document.querySelectorAll('.input-toggle-btn').forEach(btn=>{
+  btn.addEventListener('click', ()=>{
+    setInputMode(btn.dataset.input);
+    lastClaimSource = btn.dataset.input;
+    document.getElementById('scanResults').innerHTML = '';
+    document.getElementById('ingPromptWrap').innerHTML = '';
+    document.getElementById('step2').style.display = 'none';
+    document.getElementById('typeStep2').style.display = 'none';
+  });
+});
+
+document.getElementById('termsToggle').addEventListener('click', ()=>{
+  const el = document.getElementById('termsFull');
+  const btn = document.getElementById('termsToggle');
+  const open = el.classList.toggle('open');
+  const S = STRINGS[currentLang];
+  btn.textContent = open ? S.termsToggleOpen : S.termsToggle;
+});
+</script>
+</body>
+</html>
