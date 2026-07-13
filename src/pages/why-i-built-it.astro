@@ -84,10 +84,14 @@ const pageDescription = "The story behind Pore Scale — and why I built a bilin
 				font-size: 0.95rem;
 				letter-spacing: -0.01em;
 			}
-			.claim-pill--1 { background: rgba(255,107,107,0.12); color: #d94f4f; transform: rotate(-2deg); }
-			.claim-pill--2 { background: rgba(45,158,136,0.12); color: #1f7a68; transform: rotate(1.5deg); }
-			.claim-pill--3 { background: rgba(196,128,0,0.12); color: #a06800; transform: rotate(-1deg); }
-			.claim-pill--4 { background: rgba(124,58,237,0.1); color: #6d28d9; transform: rotate(2deg); }
+			/* Solid, opaque tints (via color-mix) instead of translucent
+			   rgba() fills — the old low-alpha backgrounds let the body's
+			   water-line texture show through the pills instead of sitting
+			   behind them. */
+			.claim-pill--1 { background: color-mix(in srgb, #ff6b6b 20%, white); color: #d94f4f; transform: rotate(-2deg); }
+			.claim-pill--2 { background: color-mix(in srgb, #2d9e88 20%, white); color: #1f7a68; transform: rotate(1.5deg); }
+			.claim-pill--3 { background: color-mix(in srgb, #c48000 22%, white); color: #a06800; transform: rotate(-1deg); }
+			.claim-pill--4 { background: color-mix(in srgb, #7c3aed 18%, white); color: #6d28d9; transform: rotate(2deg); }
 
 			section {
 				margin: 3rem 0;
