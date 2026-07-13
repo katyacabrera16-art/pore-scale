@@ -237,18 +237,21 @@ const pageDescription =
   }
   @keyframes suspensePulse{0%,100%{opacity:.55;}50%{opacity:1;}}
 
-  .evidence-banner{display:flex; gap:12px; align-items:flex-start; padding:16px 18px; border-radius:14px; margin-bottom:20px; border-left:4px solid transparent;}
+  .evidence-banner{display:flex; gap:12px; align-items:flex-start; padding:16px 18px; border-radius:14px; margin-bottom:20px;}
   .evidence-icon{
     font-size:19px; line-height:1; flex-shrink:0; width:34px; height:34px;
     display:flex; align-items:center; justify-content:center; border-radius:50%;
-    background:rgba(255,255,255,.55);
+    background:rgba(255,255,255,.28);
   }
-  .evidence-label{font-weight:700; font-size:15px; margin-bottom:3px;}
-  .evidence-sub{font-size:13.5px; line-height:1.5; opacity:.9;}
-  .evidence-banner.sage{background:var(--teal-bg); color:#1f6e5c; border-left-color:#2d9e88;}
-  .evidence-banner.coral{background:var(--coral-bg); color:#b33f3f; border-left-color:#ff6b6b;}
-  .evidence-banner.amber{background:var(--amber-bg); color:#8a6510; border-left-color:#f0a500;}
-  .evidence-banner.neutral{background:#eef4f2; color:#4a7a72; border-left-color:#8fada5;}
+  .evidence-label{font-weight:700; font-size:15px; margin-bottom:3px; color:#fff;}
+  .evidence-sub{font-size:13.5px; line-height:1.5; color:#fff; opacity:.88;}
+  /* Solid, saturated fills instead of pale tints — this banner is the
+     tool's actual verdict, so it should read like an app alert/status
+     chip at a glance, not blend into the card like body copy. */
+  .evidence-banner.sage{background:#2d9e88;}
+  .evidence-banner.coral{background:#e2593f;}
+  .evidence-banner.amber{background:#c2820a;}
+  .evidence-banner.neutral{background:#5a8078;}
   .ing-cta{background:#f0f7f5; border:1.5px dashed var(--line); border-radius:14px; padding:14px 16px; margin-top:20px; font-size:14px; color:var(--ink-soft); font-style:italic;}
   .fragrance-note{background:var(--amber-bg); border-radius:14px; padding:14px 16px; margin-top:20px; font-size:14px; color:#8a6510; line-height:1.5;}
   .card-footer{display:flex; flex-wrap:wrap; gap:6px 14px; font-size:12px; color:var(--ink-soft); margin-top:24px; padding-top:16px; border-top:1px solid var(--line);}
@@ -661,15 +664,24 @@ function ocrFuzzyVariant(str){
 
 // The single place alias matching happens — used everywhere so the
 // exact-match and fuzzy-match behavior stays consistent across search,
-// claim analysis, and ingredient checks.
-function matchesAlias(normalizedText, alias){
+// claim analysis, and ingredient checks. Returns 'exact' | 'fuzzy' | null
+// instead of a plain boolean: a match that only worked via the OCR-digit
+// fallback means the underlying text was ambiguous, which matters for
+// confidence scoring (an ingredient check built on a shaky read should
+// never come back "High confidence") even though it still counts as a
+// match for display purposes.
+function matchQuality(normalizedText, alias){
   const na = normalizeText(alias);
-  if(normalizedText.includes(na)) return true;
+  if(normalizedText.includes(na)) return 'exact';
   // Always try the fuzzy fallback too — the OCR misread (a digit standing
   // in for a letter) happens in the SCANNED text, not in our stored,
   // correctly-spelled alias, so gating on the alias alone would miss
   // exactly the cases this exists to catch.
-  return ocrFuzzyVariant(normalizedText).includes(ocrFuzzyVariant(na));
+  if(ocrFuzzyVariant(normalizedText).includes(ocrFuzzyVariant(na))) return 'fuzzy';
+  return null;
+}
+function matchesAlias(normalizedText, alias){
+  return matchQuality(normalizedText, alias) !== null;
 }
 
 const chipContainer = document.getElementById('chipContainer');
@@ -713,8 +725,17 @@ function getEvidenceState(c, ingredientChecked, hits){
   return {state:'supported', cls:'sage', ...t.supported};
 }
 
-function getConfidence(c, ingredientChecked){
+// Confidence reflects the quality of THIS scan, not just the claim type:
+//  - Low: missing information (nothing checked yet) or external evidence
+//    required (not checkable from ingredients at all).
+//  - Medium: checked, but the ingredient text was sparse/hard to read, or
+//    a match only lined up through the OCR-fuzzy fallback (ambiguous
+//    terminology / a possible misread rather than a clean, exact match).
+//  - High: complete, readable ingredient text and a narrowly verifiable
+//    claim, matched exactly.
+function getConfidence(c, ingredientChecked, quality){
   if(!isCheckable(c) || !ingredientChecked) return 'Low';
+  if(quality === 'medium') return 'Medium';
   return c.verificationMethod === 'ingredient-list check' ? 'High' : 'Medium';
 }
 
@@ -723,7 +744,7 @@ function cardHTML(c, idx){
   const checkResult = ingredientCheckResults[idx];
   const hits = checkResult ? checkResult.hits : [];
   const es = getEvidenceState(c, !!checkResult, hits);
-  const confidence = CONFIDENCE_I18N[currentLang][getConfidence(c, !!checkResult)];
+  const confidence = CONFIDENCE_I18N[currentLang][getConfidence(c, !!checkResult, checkResult && checkResult.quality)];
   const name = cc(c, 'name');
 
   let evidenceDetail = '';
@@ -901,13 +922,33 @@ function analyzeIngredientText(rawText){
   const normalized = normalizeText(rawText);
   if(!normalized) return;
 
+  // Confidence input: is this ingredient text actually substantial, or
+  // short/sparse in a way that suggests a partial scan or a rushed paste?
+  // A real INCI list is usually a long comma-separated run of words —
+  // under ~40 letters is a strong sign of incomplete information, which
+  // caps confidence at Medium even if every claim matches cleanly.
+  const textIsSparse = normalized.replace(/[^a-z]/g,'').length < 40;
+
   matchedClaims.forEach(i=>{
     const c = CLAIMS[i];
     if(!c.redFlagCheck) return;
+    // Track whether ANY alias for ANY of this claim's flagged ingredients
+    // only lined up via the OCR-fuzzy fallback — that's "possible
+    // ingredient synonyms / ambiguous terminology" territory, which caps
+    // confidence at Medium per claim even when hits themselves are real.
+    let anyFuzzy = false;
     const hits = c.redFlagCheck.ingredients
-      .filter(ing => ing.aliases.some(a => matchesAlias(normalized, a)))
+      .filter(ing => ing.aliases.some(a => {
+        const q = matchQuality(normalized, a);
+        if(q === 'fuzzy') anyFuzzy = true;
+        return q !== null;
+      }))
       .map(ing => ing.name);
-    ingredientCheckResults[i] = {checked:true, hits};
+    ingredientCheckResults[i] = {
+      checked:true,
+      hits,
+      quality: (textIsSparse || anyFuzzy) ? 'medium' : 'high'
+    };
   });
 
   document.getElementById('ingPromptWrap').innerHTML = '';
