@@ -96,11 +96,12 @@ const pageDescription =
 
   .sub{font-size:17px;line-height:1.55;color:var(--ink-soft);margin:0 0 32px;max-width:56ch;}
 
-  .mode-tabs{display:flex; gap:6px; background:#eef4f2; padding:5px; border-radius:14px; margin-bottom:22px; width:fit-content;}
+  .mode-tabs{display:flex; gap:6px; background:#eef4f2; padding:5px; border-radius:14px; margin-bottom:22px; width:fit-content; max-width:100%; overflow-x:auto; -webkit-overflow-scrolling:touch;}
   .mode-tab{
     border:none; background:transparent; padding:10px 18px; border-radius:10px;
     font-family:Georgia,'Times New Roman',serif; font-size:14px; font-weight:600; color:var(--ink-soft);
     cursor:pointer; transition:all .18s ease; display:flex; align-items:center; gap:7px;
+    white-space:nowrap; flex-shrink:0;
   }
   .mode-tab.active{background:var(--card); color:var(--ink); box-shadow:0 2px 8px rgba(0,0,0,.06);}
   .mode-tab:hover:not(.active){color:var(--ink);}
@@ -408,6 +409,19 @@ const pageDescription =
 <script is:inline>
 
 let currentLang = 'en';
+
+// Hoisted up from the "SCAN STEP 1" section below: cardHTML() reads
+// ingredientCheckResults on every render, including the very first
+// render triggered by selectClaim(0) further down this script. Since
+// selectClaim(0) runs before the script reaches the SCAN STEP 1 section,
+// these must be declared before that point or every card render throws
+// "Cannot access before initialization" and silently aborts the rest of
+// the script — including every addEventListener after it (that's what
+// was breaking the "Check a Product" tab).
+let matchedClaims = [];
+let ingredientCheckResults = {}; // {claimIndex: {checked:true, hits:[...names]}} — read by cardHTML() to render the evidence banner
+let inputMode = 'scan';
+let lastClaimSource = 'scan'; // tracks HOW the current claim text arrived — a photo (even if we're now showing it in the review box) or genuine manual typing. Keeps the ingredient step defaulting to "scan" for photo-based claims, so scanning the front label doesn't force someone into typing the (much longer) ingredient list too.
 
 const TIER_LABEL = {
   en: {unregulated:"No Legal Definition", weak:"Real, But Weaker Than It Sounds", verified:"Independently Verified"},
@@ -785,10 +799,8 @@ document.querySelectorAll('.mode-tab').forEach(tab=>{
 });
 
 /* ---------- SCAN STEP 1: the claim ---------- */
-let matchedClaims = [];
-let ingredientCheckResults = {}; // {claimIndex: {checked:true, hits:[...names]}} — read by cardHTML() to render the evidence banner
-let inputMode = 'scan';
-let lastClaimSource = 'scan'; // tracks HOW the current claim text arrived — a photo (even if we're now showing it in the review box) or genuine manual typing. Keeps the ingredient step defaulting to "scan" for photo-based claims, so scanning the front label doesn't force someone into typing the (much longer) ingredient list too.
+// (matchedClaims, ingredientCheckResults, inputMode, lastClaimSource are
+// declared near the top of this script — see note there.)
 
 // Shared analysis logic — used by BOTH the scan flow (after OCR) and the
 // typed/pasted flow. This is the core Stage 1 principle: the *source* of

@@ -36,6 +36,7 @@ import { SITE_TITLE } from '../consts';
     color: #1a3a34;
     text-decoration: none;
     letter-spacing: -0.01em;
+    white-space: nowrap;
   }
   .teal {
     color: #2d9e88;
@@ -58,5 +59,21 @@ import { SITE_TITLE } from '../consts';
   .nav-links a:hover {
     color: #1a3a34;
   }
-}
+
+  @media (max-width: 640px) {
+    nav {
+      flex-wrap: wrap;
+      row-gap: 8px;
+    }
+    .nav-links {
+      width: 100%;
+      justify-content: flex-start;
+      gap: 16px;
+      overflow-x: auto;
+      -webkit-overflow-scrolling: touch;
+    }
+    .nav-links a {
+      white-space: nowrap;
+    }
+  }
 </style>
