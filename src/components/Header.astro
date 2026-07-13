@@ -30,7 +30,12 @@ const navItems = [
 
 <style>
   header {
-    background: linear-gradient(120deg, #f7fbfa 0%, #eef6f3 55%, #fdece7 100%);
+    /* Kept flat rather than the diagonal gradient tried earlier: on
+       mobile the nav wraps and leaves unused width in the bar, and a
+       diagonal gradient turns that unused width into an obvious blank
+       coral patch. The vivid part now lives entirely in the underline
+       bar below, which doesn't depend on how much space text fills. */
+    background: #f0f7f5;
     position: relative;
     padding: 0 2em;
   }
@@ -40,7 +45,7 @@ const navItems = [
     left: 0;
     right: 0;
     bottom: 0;
-    height: 3px;
+    height: 4px;
     background: linear-gradient(90deg, #2d9e88, #ff6b6b, #f0a500);
   }
   nav {
