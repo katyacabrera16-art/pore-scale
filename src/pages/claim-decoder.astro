@@ -185,6 +185,17 @@ const pageDescription =
   .spinner{width:14px;height:14px;border:2px solid var(--coral-bg);border-top-color:var(--coral);border-radius:50%;animation:spin .7s linear infinite;}
   @keyframes spin{to{transform:rotate(360deg);}}
 
+  .match-confirm{background:var(--card); border:1.5px solid var(--line); border-radius:16px; padding:22px; margin-bottom:20px; text-align:center;}
+  .match-confirm p{margin:0 0 14px; font-size:14.5px; color:var(--ink-soft);}
+  .match-pills{display:flex; flex-wrap:wrap; gap:8px; justify-content:center; margin-bottom:18px;}
+  .match-pill{
+    background:var(--coral-bg); color:#b33f3f; border:1.5px solid var(--coral);
+    padding:8px 16px; border-radius:999px; font-family:Georgia,'Times New Roman',serif;
+    font-weight:600; font-size:14px;
+  }
+  .match-confirm .confirm-actions{display:flex; gap:10px; justify-content:center; flex-wrap:wrap;}
+  .edit-text-link{background:none; border:none; color:var(--ink-soft); text-decoration:underline; cursor:pointer; font-family:Georgia,'Times New Roman',serif; font-size:13.5px;}
+
   #scanResults .card{margin-bottom:16px;}
   .scan-empty{background:var(--teal-bg); border-radius:16px; padding:20px; font-size:14.5px; color:#1f6e5c; line-height:1.55;}
 
@@ -373,6 +384,8 @@ const pageDescription =
       </div>
     </div>
 
+    <div id="claimMatchConfirm" style="display:none;"></div>
+
     <div id="typeInputPanel" style="display:none;">
       <div class="type-step">
         <p class="chip-label" data-i18n="typeClaimLabel">Type or paste the claim</p>
@@ -409,6 +422,8 @@ const pageDescription =
       </div>
       <div class="scan-status" id="scanStatus2"><span class="spinner"></span><span id="scanStatusText2" data-i18n="readingIngredients">Reading the ingredient list…</span></div>
     </div>
+
+    <div id="ingMatchConfirm" style="display:none;"></div>
 
     <div class="type-step" id="typeStep2" style="display:none;">
       <p class="chip-label" data-i18n="typeIngLabel">Type or paste the ingredient list</p>
@@ -560,7 +575,11 @@ const STRINGS = {
     stampSupported:"SUPPORTED", stampContradiction:"CONTRADICTION", stampCannotVerify:"UNVERIFIABLE", stampOpenCase:"CASE OPEN",
     investigating1:"Reading the label…", investigating2:"Cross-checking the regulatory record…",
     investigating3:"Comparing against known evidence…", investigating4:"Building the case…",
-    seeEvidence:"See the full evidence ↓", tryAnotherCase:"↺ Check another product"
+    seeEvidence:"See the full evidence ↓", tryAnotherCase:"↺ Check another product",
+    weFoundClaims:"We found this on the label:", weFoundIngredients:"We checked for:",
+    confirmDecode:"✨ Yes, decode this", editTextInstead:"Not right? Edit the text instead",
+    noneOfTheseFound:"None found in the ingredient list you provided.",
+    noGlossaryMatchPhoto:"We couldn't match any of our 17 known claims in that photo. You can edit the text below, or try Search & Browse instead."
   },
   es: {
     h1part1:"El Decodificador de ", h1part2:"Afirmaciones",
@@ -620,7 +639,11 @@ const STRINGS = {
     stampSupported:"RESPALDADO", stampContradiction:"CONTRADICCIÓN", stampCannotVerify:"NO VERIFICABLE", stampOpenCase:"EXPEDIENTE ABIERTO",
     investigating1:"Leyendo la etiqueta…", investigating2:"Cruzando con el registro regulatorio…",
     investigating3:"Comparando con la evidencia conocida…", investigating4:"Construyendo el caso…",
-    seeEvidence:"Ver la evidencia completa ↓", tryAnotherCase:"↺ Verificar otro producto"
+    seeEvidence:"Ver la evidencia completa ↓", tryAnotherCase:"↺ Verificar otro producto",
+    weFoundClaims:"Encontramos esto en la etiqueta:", weFoundIngredients:"Buscamos:",
+    confirmDecode:"✨ Sí, decodificar esto", editTextInstead:"¿No es correcto? Edita el texto",
+    noneOfTheseFound:"Ninguno encontrado en la lista de ingredientes que proporcionaste.",
+    noGlossaryMatchPhoto:"No pudimos identificar ninguna de nuestras 17 afirmaciones conocidas en esa foto. Puedes editar el texto abajo, o probar Buscar y Explorar."
   }
 };
 
@@ -905,6 +928,7 @@ function runInvestigation(onComplete){
 function analyzeClaimText(rawText){
   const S = STRINGS[currentLang];
   const normalized = normalizeText(rawText);
+  document.getElementById('claimMatchConfirm').style.display = 'none';
 
   if(!normalized){
     document.getElementById('scanResults').innerHTML = `<div class="scan-empty">${S.noTextYet}</div>`;
@@ -1116,6 +1140,7 @@ document.getElementById('decodeBtn1').addEventListener('click', async ()=>{
   document.getElementById('scanResults').innerHTML = '';
   document.getElementById('ingPromptWrap').innerHTML = '';
   document.getElementById('step2').style.display = 'none';
+  document.getElementById('claimMatchConfirm').style.display = 'none';
 
   try{
     const preprocessed = preprocessImageForOCR(document.getElementById('previewImg1'));
@@ -1124,14 +1149,24 @@ document.getElementById('decodeBtn1').addEventListener('click', async ()=>{
     const claimBox = document.getElementById('claimTextInput');
     const hint = document.getElementById('claimTextHint');
     claimBox.value = cleaned;
-    setInputMode('type');
     lastClaimSource = 'scan';
-    if(cleaned.replace(/[^a-zA-Z]/g,'').length < 4){
-      hint.textContent = S.couldntReadClaim;
+
+    // Pill-confirmation flow: match the scanned text against the glossary
+    // FIRST, and only surface it as matched claim pills — raw OCR text is
+    // no longer the primary thing shown after a scan. It's still there as
+    // a fallback (no match found) or via the explicit "Edit the text
+    // instead" link, so a bad scan is never a dead end.
+    const normalized = normalizeText(cleaned);
+    const foundIdx = [];
+    CLAIMS.forEach((c,i)=>{ if(c.aliases.some(a => matchesAlias(normalized, a))) foundIdx.push(i); });
+
+    if(foundIdx.length){
+      showClaimMatchConfirm(foundIdx, cleaned);
     } else {
-      hint.textContent = S.hereWhatWeReadClaim;
+      setInputMode('type');
+      hint.textContent = cleaned.replace(/[^a-zA-Z]/g,'').length < 4 ? S.couldntReadClaim : S.noGlossaryMatchPhoto;
+      claimBox.focus();
     }
-    claimBox.focus();
   } catch(err){
     setInputMode('type');
     document.getElementById('claimTextHint').textContent = S.somethingWrongClaim;
@@ -1141,6 +1176,34 @@ document.getElementById('decodeBtn1').addEventListener('click', async ()=>{
     btn.disabled = false;
   }
 });
+
+// Renders the "we found this on the label" pill-confirmation card after a
+// successful claim scan. Confirming re-runs the same analyzeClaimText()
+// path the typed-input flow uses (source of the text shouldn't change how
+// it's evaluated); "Edit the text instead" drops into the raw-text box
+// with the OCR result pre-filled, for anyone who wants to fix a misread.
+function showClaimMatchConfirm(foundIdx, rawText){
+  const S = STRINGS[currentLang];
+  document.getElementById('typeInputPanel').style.display = 'none';
+  const wrap = document.getElementById('claimMatchConfirm');
+  const pills = foundIdx.map(i => `<span class="match-pill">${cc(CLAIMS[i],'name')}</span>`).join('');
+  wrap.innerHTML = `
+    <div class="match-confirm">
+      <p>${S.weFoundClaims}</p>
+      <div class="match-pills">${pills}</div>
+      <div class="confirm-actions">
+        <button class="btn btn-primary" id="confirmClaimBtn">${S.confirmDecode}</button>
+      </div>
+      <div style="margin-top:12px;"><button class="edit-text-link" id="editClaimTextBtn">${S.editTextInstead}</button></div>
+    </div>`;
+  wrap.style.display = 'block';
+  document.getElementById('confirmClaimBtn').addEventListener('click', ()=> analyzeClaimText(rawText));
+  document.getElementById('editClaimTextBtn').addEventListener('click', ()=>{
+    wrap.style.display = 'none';
+    setInputMode('type');
+    document.getElementById('claimTextInput').focus();
+  });
+}
 
 /* ---------- TYPED CLAIM INPUT ---------- */
 document.getElementById('analyzeClaimBtn').addEventListener('click', ()=>{
@@ -1163,22 +1226,23 @@ document.getElementById('decodeBtn2').addEventListener('click', async ()=>{
   document.getElementById('scanLine2').classList.add('active');
   status.classList.add('active');
   document.getElementById('scanStatusText2').textContent = S.readingIngredients;
+  document.getElementById('ingMatchConfirm').style.display = 'none';
 
   try{
     const preprocessed = preprocessImageForOCR(document.getElementById('previewImg2'));
     const { data: { text } } = await Tesseract.recognize(preprocessed, 'eng');
     const cleaned = text.trim();
     const ingBox = document.getElementById('ingredientTextInput');
-    const hint = document.getElementById('ingredientTextHint');
     ingBox.value = cleaned;
-    document.getElementById('step2').style.display = 'none';
-    document.getElementById('typeStep2').style.display = 'block';
+
     if(cleaned.replace(/[^a-zA-Z]/g,'').length < 4){
-      hint.textContent = S.couldntReadIng;
+      document.getElementById('step2').style.display = 'none';
+      document.getElementById('typeStep2').style.display = 'block';
+      document.getElementById('ingredientTextHint').textContent = S.couldntReadIng;
+      ingBox.focus();
     } else {
-      hint.textContent = S.hereWhatWeReadIng;
+      showIngredientMatchConfirm(cleaned);
     }
-    ingBox.focus();
   } catch(err){
     document.getElementById('step2').style.display = 'none';
     document.getElementById('typeStep2').style.display = 'block';
@@ -1189,6 +1253,47 @@ document.getElementById('decodeBtn2').addEventListener('click', async ()=>{
     btn.disabled = false;
   }
 });
+
+// Same pill-confirmation pattern as the claim step: shows which of the
+// currently-matched claims' flagged ingredients turned up in this scan
+// (or an honest "none found" if the list is clean), before running the
+// actual ingredient check.
+function showIngredientMatchConfirm(rawText){
+  const S = STRINGS[currentLang];
+  const normalized = normalizeText(rawText);
+  document.getElementById('step2').style.display = 'none';
+  document.getElementById('typeStep2').style.display = 'none';
+
+  const foundNames = [];
+  matchedClaims.forEach(i=>{
+    const c = CLAIMS[i];
+    if(!c.redFlagCheck) return;
+    c.redFlagCheck.ingredients.forEach(ing=>{
+      if(ing.aliases.some(a=>matchesAlias(normalized, a)) && !foundNames.includes(ing.name)) foundNames.push(ing.name);
+    });
+  });
+
+  const wrap = document.getElementById('ingMatchConfirm');
+  const pillsOrNone = foundNames.length
+    ? foundNames.map(n=>`<span class="match-pill">${n}</span>`).join('')
+    : `<p style="margin:0; font-style:italic; color:var(--ink-soft);">${S.noneOfTheseFound}</p>`;
+  wrap.innerHTML = `
+    <div class="match-confirm">
+      <p>${S.weFoundIngredients}</p>
+      <div class="match-pills">${pillsOrNone}</div>
+      <div class="confirm-actions">
+        <button class="btn btn-sage" id="confirmIngBtn">${S.confirmDecode}</button>
+      </div>
+      <div style="margin-top:12px;"><button class="edit-text-link" id="editIngTextBtn">${S.editTextInstead}</button></div>
+    </div>`;
+  wrap.style.display = 'block';
+  document.getElementById('confirmIngBtn').addEventListener('click', ()=> analyzeIngredientText(rawText));
+  document.getElementById('editIngTextBtn').addEventListener('click', ()=>{
+    wrap.style.display = 'none';
+    document.getElementById('typeStep2').style.display = 'block';
+    document.getElementById('ingredientTextInput').focus();
+  });
+}
 
 /* ---------- TYPED INGREDIENT INPUT ---------- */
 document.getElementById('analyzeIngredientsBtn').addEventListener('click', ()=>{
