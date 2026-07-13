@@ -1,0 +1,11 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npx astro *)",
+      "Bash(curl -s http://localhost:4321/)",
+      "Bash(kill %1)",
+      "Bash(wait)",
+      "Bash(node_modules/.bin/astro dev *)"
+    ]
+  }
+}
