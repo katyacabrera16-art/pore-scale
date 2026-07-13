@@ -1,5 +1,18 @@
 ---
 import { SITE_TITLE } from '../consts';
+
+// Highlights the current section in the nav. Blog and Why I Built It each
+// have multiple real routes (post pages, the ES twin, the old /about
+// redirect), so "active" is a prefix match against all of them rather
+// than an exact string compare.
+const path = Astro.url.pathname;
+const startsWith = (base) => path === base || path.startsWith(`${base}/`);
+const navItems = [
+  { href: '/', label: 'Home', active: path === '/' },
+  { href: '/blog', label: 'Blog', active: startsWith('/blog') || startsWith('/en/blog') || startsWith('/es/blog') },
+  { href: '/claim-decoder', label: 'Claim Decoder', active: startsWith('/claim-decoder') },
+  { href: '/why-i-built-it', label: 'Why I Built It', active: startsWith('/why-i-built-it') || startsWith('/es/why-i-built-it') || startsWith('/about') },
+];
 ---
 
 <header>
@@ -8,19 +21,27 @@ import { SITE_TITLE } from '../consts';
       <a href="/">Pore <span class="teal">Scale</span><span class="dot">•</span></a>
     </div>
     <div class="nav-links">
-      <a href="/">Home</a>
-      <a href="/blog">Blog</a>
-      <a href="/claim-decoder">Claim Decoder</a>
-      <a href="/why-i-built-it">Why I Built It</a>
+      {navItems.map((item) => (
+        <a href={item.href} class:list={[{ active: item.active }]}>{item.label}</a>
+      ))}
     </div>
   </nav>
 </header>
 
 <style>
   header {
-    background: #f0f7f5;
-    border-bottom: 1px solid #c8e0da;
+    background: linear-gradient(120deg, #f7fbfa 0%, #eef6f3 55%, #fdece7 100%);
+    position: relative;
     padding: 0 2em;
+  }
+  header::after {
+    content: '';
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    height: 3px;
+    background: linear-gradient(90deg, #2d9e88, #ff6b6b, #f0a500);
   }
   nav {
     max-width: 720px;
@@ -29,6 +50,7 @@ import { SITE_TITLE } from '../consts';
     display: flex;
     align-items: center;
     justify-content: space-between;
+    position: relative;
   }
   .logo a {
     font-size: 17px;
@@ -50,20 +72,30 @@ import { SITE_TITLE } from '../consts';
     display: flex;
     gap: 24px;
   }
-.nav-links a {
+  .nav-links a {
     font-size: 14px;
+    font-weight: 500;
     color: #4a7a72;
     text-decoration: none;
     letter-spacing: 0.02em;
+    padding-bottom: 3px;
+    border-bottom: 2px solid transparent;
+    transition: color 0.15s ease, border-color 0.15s ease;
   }
   .nav-links a:hover {
     color: #1a3a34;
+  }
+  .nav-links a.active {
+    color: #1a3a34;
+    font-weight: 600;
+    border-bottom-color: #ff6b6b;
   }
 
   @media (max-width: 640px) {
     nav {
       flex-wrap: wrap;
       row-gap: 8px;
+      padding: 0.75em 0;
     }
     .nav-links {
       width: 100%;
