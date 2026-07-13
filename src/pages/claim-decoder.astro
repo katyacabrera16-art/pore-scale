@@ -220,6 +220,19 @@ const pageDescription =
 
   .card{background:var(--card);border-radius:var(--radius);padding:32px;border:1.5px solid var(--line); box-shadow:0 4px 20px rgba(43,38,32,.04);}
 
+  /* The suspense/"analyzing" state shown briefly before a result reveals —
+     a deliberate pause so the answer feels considered rather than instant. */
+  .suspense-card{ text-align:center; animation:cardIn .3s ease; }
+  .suspense-icon{
+    width:34px; height:34px; margin:0 auto 16px; border:3px solid var(--coral-bg);
+    border-top-color:var(--coral); border-radius:50%; animation:spin .8s linear infinite;
+  }
+  .suspense-text{
+    font-size:15px; color:var(--ink-soft); font-style:italic; margin:0;
+    animation:suspensePulse 1.4s ease-in-out infinite;
+  }
+  @keyframes suspensePulse{0%,100%{opacity:.55;}50%{opacity:1;}}
+
   .evidence-banner{display:flex; gap:12px; align-items:flex-start; padding:16px 18px; border-radius:14px; margin-bottom:20px;}
   .evidence-icon{font-size:22px; line-height:1;}
   .evidence-label{font-weight:700; font-size:15px; margin-bottom:3px;}
@@ -505,6 +518,8 @@ const STRINGS = {
     somethingWrongIng:"Something went wrong reading that photo. Try again, or just paste the ingredient list below.",
     scanIngredientNext:"Scan the ingredient list next.", pasteIngredientNext:"Paste the ingredient list next.",
     wantToKnow:"Want to know if this bottle's ingredients actually back up",
+    suspenseLabel:"Checking the evidence…",
+    suspenseLabelIngredients:"Comparing against the ingredients…",
     verificationMethod:"Verification method:", confidence:"Confidence:", lastReviewed:"Last reviewed:",
     confidenceNote:"Confidence reflects the completeness and quality of the available evidence. It does not indicate whether the product is safe, effective, or appropriate for an individual.",
     source:"Source:",
@@ -561,6 +576,8 @@ const STRINGS = {
     somethingWrongIng:"Algo salió mal al leer esa foto. Intenta de nuevo, o simplemente pega la lista de ingredientes abajo.",
     scanIngredientNext:"Escanea la lista de ingredientes a continuación.", pasteIngredientNext:"Pega la lista de ingredientes a continuación.",
     wantToKnow:"¿Quieres saber si los ingredientes de este envase realmente respaldan",
+    suspenseLabel:"Revisando la evidencia…",
+    suspenseLabelIngredients:"Comparando con los ingredientes…",
     verificationMethod:"Método de verificación:", confidence:"Confianza:", lastReviewed:"Última revisión:",
     confidenceNote:"La confianza refleja la integridad y calidad de la evidencia disponible. No indica si el producto es seguro, eficaz o adecuado para una persona en particular.",
     source:"Fuente:",
@@ -608,7 +625,7 @@ function applyLanguage(lang){
   renderChips();
   if(resultEl.classList.contains('show')){
     const activeChip = document.querySelector('.chip.active');
-    if(activeChip) renderCard(CLAIMS[Number(activeChip.dataset.index)]);
+    if(activeChip) renderCard(CLAIMS[Number(activeChip.dataset.index)], {immediate:true});
   }
   if(matchedClaims.length){
     document.getElementById('scanResults').innerHTML = matchedClaims.map(i=>cardHTML(CLAIMS[i], i)).join('');
@@ -754,10 +771,32 @@ function cardHTML(c, idx){
 }
 
 
-function renderCard(c){
-  resultEl.innerHTML = cardHTML(c, 'search');
+// A brief "analyzing" pause before a result appears — purely
+// presentational (it doesn't change what's computed, only when it shows
+// up), added because instant, flat results felt more like a glossary
+// lookup than a considered answer. targetEl gets the suspense markup
+// immediately; renderFn() runs after `delay` ms to swap in the real
+// content. Reused by every reveal point: browsing a claim, matching a
+// scanned/typed claim, and — with a longer delay — the ingredient check,
+// which is the tool's actual "moment of truth."
+function revealWithSuspense(targetEl, renderFn, opts={}){
+  const S = STRINGS[currentLang];
+  const delay = opts.delay ?? 750;
+  const label = opts.label || S.suspenseLabel;
+  targetEl.innerHTML = `<div class="card suspense-card"><div class="suspense-icon"></div><p class="suspense-text">${label}</p></div>`;
+  setTimeout(()=>{ renderFn(); }, delay);
+}
+
+function renderCard(c, opts={}){
   resultEl.classList.add('show');
   emptyEl.style.display='none';
+  if(opts.immediate){
+    // Used only when re-rendering an already-revealed card in a new
+    // language — nothing new is being "found," so no suspense.
+    resultEl.innerHTML = cardHTML(c, 'search');
+    return;
+  }
+  revealWithSuspense(resultEl, ()=>{ resultEl.innerHTML = cardHTML(c, 'search'); });
 }
 
 function selectClaim(i){
@@ -828,18 +867,23 @@ function analyzeClaimText(rawText){
   document.getElementById('typeStep2').style.display = 'none';
 
   if(matchedClaims.length){
-    document.getElementById('scanResults').innerHTML = matchedClaims.map(i=>cardHTML(CLAIMS[i], i)).join('');
-    const needsIngredientCheck = matchedClaims.filter(i=>CLAIMS[i].redFlagCheck);
-    if(needsIngredientCheck.length){
-      const names = needsIngredientCheck.map(i=>cc(CLAIMS[i],'name')).join(', ');
-      const howTo = lastClaimSource === 'scan' ? S.scanIngredientNext : S.pasteIngredientNext;
-      document.getElementById('ingPromptWrap').innerHTML = `
-        <div class="ing-prompt">
-          <p>${S.wantToKnow} <span class="claim-list">${names}</span>? ${howTo}</p>
-        </div>`;
-      if(lastClaimSource === 'scan'){ document.getElementById('step2').style.display = 'block'; }
-      else { document.getElementById('typeStep2').style.display = 'block'; }
-    }
+    // Suspense only on the "we found it" path — a delayed "no match"
+    // would read as lag, not a deliberate reveal, so the empty-state
+    // branch below stays instant.
+    revealWithSuspense(document.getElementById('scanResults'), ()=>{
+      document.getElementById('scanResults').innerHTML = matchedClaims.map(i=>cardHTML(CLAIMS[i], i)).join('');
+      const needsIngredientCheck = matchedClaims.filter(i=>CLAIMS[i].redFlagCheck);
+      if(needsIngredientCheck.length){
+        const names = needsIngredientCheck.map(i=>cc(CLAIMS[i],'name')).join(', ');
+        const howTo = lastClaimSource === 'scan' ? S.scanIngredientNext : S.pasteIngredientNext;
+        document.getElementById('ingPromptWrap').innerHTML = `
+          <div class="ing-prompt">
+            <p>${S.wantToKnow} <span class="claim-list">${names}</span>? ${howTo}</p>
+          </div>`;
+        if(lastClaimSource === 'scan'){ document.getElementById('step2').style.display = 'block'; }
+        else { document.getElementById('typeStep2').style.display = 'block'; }
+      }
+    });
   } else {
     document.getElementById('scanResults').innerHTML = `<div class="scan-empty">${S.scanClaimNoMatch}</div>`;
   }
@@ -858,12 +902,19 @@ function analyzeIngredientText(rawText){
     ingredientCheckResults[i] = {checked:true, hits};
   });
 
-  // Re-render every matched card so each one's evidence banner reflects
-  // the just-completed check — not just the claims that had a hit.
-  document.getElementById('scanResults').innerHTML = matchedClaims.map(i=>cardHTML(CLAIMS[i], i)).join('');
   document.getElementById('ingPromptWrap').innerHTML = '';
   document.getElementById('step2').style.display = 'none';
   document.getElementById('typeStep2').style.display = 'none';
+
+  // This is the tool's actual "moment of truth" — does the ingredient
+  // list back up the claim or not — so it gets a longer, distinctly
+  // worded suspense pause than a simple claim lookup.
+  const S = STRINGS[currentLang];
+  revealWithSuspense(document.getElementById('scanResults'), ()=>{
+    // Re-render every matched card so each one's evidence banner reflects
+    // the just-completed check — not just the claims that had a hit.
+    document.getElementById('scanResults').innerHTML = matchedClaims.map(i=>cardHTML(CLAIMS[i], i)).join('');
+  }, {label: S.suspenseLabelIngredients, delay: 1100});
 }
 
 const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB — generous for a phone photo, protects against accidental huge uploads
@@ -913,6 +964,58 @@ function loadPreview(file, zoneId, previewSectionId, previewImgId){
   document.getElementById(previewSectionId).style.display='block';
 }
 
+// Preprocesses a photo before handing it to the text reader: converts to
+// grayscale, then binarizes to pure black/white using Otsu's method
+// (computes the ideal cutoff from the image's own brightness histogram,
+// rather than a guessed fixed value). Tesseract reads clean black-on-
+// white far more reliably than a raw color photo with glare, shadows, or
+// a busy background — this is a standard OCR pre-processing technique,
+// not a change to the recognition or matching logic itself.
+function preprocessImageForOCR(imgEl){
+  const canvas = document.createElement('canvas');
+  canvas.width = imgEl.naturalWidth;
+  canvas.height = imgEl.naturalHeight;
+  const ctx = canvas.getContext('2d');
+  ctx.drawImage(imgEl, 0, 0);
+  const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+  const data = imageData.data;
+
+  // Grayscale (luminance-weighted) + a 256-bin brightness histogram, built in one pass
+  const hist = new Array(256).fill(0);
+  const gray = new Uint8ClampedArray(data.length / 4);
+  for(let i=0, p=0; i<data.length; i+=4, p++){
+    const g = Math.round(0.299*data[i] + 0.587*data[i+1] + 0.114*data[i+2]);
+    gray[p] = g;
+    hist[g]++;
+  }
+
+  // Otsu's method: the threshold that maximizes contrast between the
+  // "dark" and "light" groups of pixels — this is what adapts to each
+  // photo's own lighting instead of a one-size-fits-all cutoff.
+  const total = gray.length;
+  let sum = 0;
+  for(let t=0; t<256; t++) sum += t * hist[t];
+  let sumB = 0, wB = 0, maxVar = 0, threshold = 127;
+  for(let t=0; t<256; t++){
+    wB += hist[t];
+    if(wB === 0) continue;
+    const wF = total - wB;
+    if(wF === 0) break;
+    sumB += t * hist[t];
+    const mB = sumB / wB;
+    const mF = (sum - sumB) / wF;
+    const varBetween = wB * wF * (mB - mF) * (mB - mF);
+    if(varBetween > maxVar){ maxVar = varBetween; threshold = t; }
+  }
+
+  for(let i=0, p=0; i<data.length; i+=4, p++){
+    const v = gray[p] > threshold ? 255 : 0;
+    data[i] = data[i+1] = data[i+2] = v;
+  }
+  ctx.putImageData(imageData, 0, 0);
+  return canvas.toDataURL('image/png');
+}
+
 wireDropzone('dropzone1','fileInput1','previewSection1','previewImg1');
 wireDropzone('dropzone2','fileInput2','previewSection2','previewImg2');
 
@@ -940,7 +1043,8 @@ document.getElementById('decodeBtn1').addEventListener('click', async ()=>{
   document.getElementById('step2').style.display = 'none';
 
   try{
-    const { data: { text } } = await Tesseract.recognize(document.getElementById('previewImg1').src, 'eng');
+    const preprocessed = preprocessImageForOCR(document.getElementById('previewImg1'));
+    const { data: { text } } = await Tesseract.recognize(preprocessed, 'eng');
     const cleaned = text.trim();
     const claimBox = document.getElementById('claimTextInput');
     const hint = document.getElementById('claimTextHint');
@@ -986,7 +1090,8 @@ document.getElementById('decodeBtn2').addEventListener('click', async ()=>{
   document.getElementById('scanStatusText2').textContent = S.readingIngredients;
 
   try{
-    const { data: { text } } = await Tesseract.recognize(document.getElementById('previewImg2').src, 'eng');
+    const preprocessed = preprocessImageForOCR(document.getElementById('previewImg2'));
+    const { data: { text } } = await Tesseract.recognize(preprocessed, 'eng');
     const cleaned = text.trim();
     const ingBox = document.getElementById('ingredientTextInput');
     const hint = document.getElementById('ingredientTextHint');
