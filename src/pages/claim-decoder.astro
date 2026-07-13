@@ -62,7 +62,14 @@ const pageDescription =
 
   .wrap{max-width:760px;margin:0 auto;padding:48px 24px 80px;position:relative;z-index:1;}
 
-  .brand-row{display:flex; align-items:center; justify-content:flex-end; margin-bottom:20px;}
+  .masthead-rule{
+    border-top:3px double var(--ink); border-bottom:1px solid var(--ink);
+    padding:8px 0; margin-bottom:6px; display:flex; justify-content:space-between; align-items:center;
+    font-family:Georgia,'Times New Roman',serif; font-size:11px; letter-spacing:.12em;
+    text-transform:uppercase; color:var(--ink-soft);
+  }
+  .masthead-brand{font-weight:700; color:var(--ink);}
+  .lang-toggle-row{display:flex; justify-content:flex-end; margin-bottom:22px;}
   .lang-toggle{display:flex; gap:2px; background:#eef4f2; padding:3px; border-radius:8px;}
   .lang-btn{
     border:none; background:transparent; padding:5px 11px; border-radius:6px;
@@ -71,33 +78,46 @@ const pageDescription =
   }
   .lang-btn.active{background:#fff; color:#1a3a34; box-shadow:0 1px 4px rgba(0,0,0,.08);}
 
-  .header-row{display:flex; align-items:flex-start; gap:14px; margin-bottom:8px;}
-  .flask-icon{flex-shrink:0; margin-top:6px; animation:bob 4s ease-in-out infinite;}
+  /* Kept even though the flask icon that used it is gone from this
+     redesign — the dropzone icons below still reference this same
+     animation, and the uploaded prototype dropped this @keyframes block
+     by accident (dead animation:bob reference with no definition left
+     in that file). Keeping it here avoids silently losing that motion. */
   @keyframes bob{0%,100%{transform:translateY(0) rotate(-4deg);}50%{transform:translateY(-6px) rotate(4deg);}}
 
+  .investig-tag{
+    display:inline-block; background:var(--coral); color:#fff; padding:3px 11px;
+    font-size:10.5px; font-weight:700; letter-spacing:.12em; text-transform:uppercase;
+    margin-bottom:16px; opacity:0; animation:fadeStep .4s ease forwards .1s;
+  }
+
   h1{
-    font-family:Georgia,'Times New Roman',serif;font-weight:700;font-size:clamp(36px,6vw,52px);
-    line-height:1.08;margin:0 0 14px; letter-spacing:-.01em;
+    font-family:Georgia,'Times New Roman',serif;font-weight:900;font-size:clamp(34px,6vw,50px);
+    line-height:1.05;margin:0 0 16px; letter-spacing:-.01em; color:var(--ink);
     opacity:0; transform:translateY(10px);
-    animation:riseIn .6s ease forwards .1s;
+    animation:riseIn .6s ease forwards .2s;
   }
   @keyframes riseIn{to{opacity:1; transform:translateY(0);}}
-  h1 .accent{color:var(--coral); position:relative; display:inline-block;}
-  h1 .accent svg{position:absolute; left:0; bottom:-6px; width:100%; height:10px; overflow:visible;}
-  h1 .accent path{stroke-dasharray:280; stroke-dashoffset:280; animation:draw 1s ease forwards .5s;}
-  @keyframes draw{to{stroke-dashoffset:0;}}
+  h1 .accent-em, .h1part2-holder{font-style:italic; color:var(--coral); font-weight:900;}
 
-  .sub{font-size:17px;line-height:1.55;color:var(--ink-soft);margin:0 0 32px;max-width:56ch;}
+  .sub.byline{
+    font-size:14.5px;line-height:1.55;color:var(--ink-soft);margin:0 0 26px;max-width:56ch;
+    font-style:italic; border-bottom:1px solid var(--line); padding-bottom:20px;
+  }
 
-  .mode-tabs{display:flex; gap:6px; background:var(--teal-bg); border:1.5px solid var(--line); padding:5px; border-radius:14px; margin-bottom:22px; width:fit-content; max-width:100%; overflow-x:auto; -webkit-overflow-scrolling:touch;}
+  /* Pill-shaped, thick-bordered tabs per the new masthead redesign —
+     merged with the existing mobile overflow-x fix (white-space/flex-
+     shrink/overflow-x on the row) so the tabs still scroll horizontally
+     instead of wrapping/overflowing on narrow screens. */
+  .mode-tabs{display:flex; gap:8px; margin-bottom:22px; width:fit-content; max-width:100%; overflow-x:auto; -webkit-overflow-scrolling:touch;}
   .mode-tab{
-    border:none; background:transparent; padding:10px 18px; border-radius:10px;
-    font-family:Georgia,'Times New Roman',serif; font-size:14px; font-weight:600; color:var(--ink-soft);
+    border:2px solid var(--ink); background:var(--card); padding:10px 20px; border-radius:999px;
+    font-family:Georgia,'Times New Roman',serif; font-size:13px; font-weight:700; color:var(--ink);
     cursor:pointer; transition:all .18s ease; display:flex; align-items:center; gap:7px;
     white-space:nowrap; flex-shrink:0;
   }
-  .mode-tab.active{background:var(--coral); color:#fff; box-shadow:0 3px 10px rgba(255,110,86,.35);}
-  .mode-tab:hover:not(.active){color:var(--ink);}
+  .mode-tab.active{background:var(--coral); color:#fff; border-color:var(--coral);}
+  .mode-tab:hover:not(.active){background:#fdf1d9;}
 
   .panel{display:none;}
   .panel.active{display:block; animation:fade .25s ease;}
@@ -125,12 +145,12 @@ const pageDescription =
 
   .search-box{position:relative;margin-bottom:24px;}
   .search-box input{
-    width:100%;padding:16px 20px;font-size:16px;font-family:Georgia,'Times New Roman',serif;
-    border:1.5px solid var(--line);border-radius:14px;background:var(--card);
-    color:var(--ink);outline:none;transition:border-color .15s ease, box-shadow .15s ease;
+    width:100%;padding:12px 4px;font-size:16px;font-family:Georgia,'Times New Roman',serif;
+    border:none;border-bottom:2px solid var(--ink);border-radius:0;background:transparent;
+    color:var(--ink);outline:none;transition:border-color .15s ease;
   }
-  .search-box input:focus{border-color:var(--coral); box-shadow:0 0 0 4px var(--coral-bg);}
-  .search-box input::placeholder{color:#8fada5;}
+  .search-box input:focus{border-color:var(--coral);}
+  .search-box input::placeholder{color:#8fada5; font-style:italic;}
 
   .chip-label{font-size:12px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-soft);margin:0 0 12px;}
   .chips{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:40px;}
@@ -320,20 +340,20 @@ const pageDescription =
 <div class="blob blob-2"></div>
 <div class="wrap">
 
-  <div class="brand-row">
+  <div class="masthead-rule">
+    <span class="masthead-brand">PORE SCALE</span>
+    <span class="masthead-date" id="mastheadDate"></span>
+  </div>
+  <div class="lang-toggle-row">
     <div class="lang-toggle" role="group" aria-label="Language / Idioma">
       <button class="lang-btn active" id="langBtnEn" data-lang="en">EN</button>
       <button class="lang-btn" id="langBtnEs" data-lang="es">ES</button>
     </div>
   </div>
 
-  <div class="header-row">
-    <svg class="flask-icon" width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#ff6b6b" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-      <path d="M12 2.69l5.66 5.66a8 8 0 1 1-11.31 0z"/>
-    </svg>
-    <h1><span data-i18n="h1part1">The Claim </span><span class="accent"><span data-i18n="h1part2">Decoder</span><svg viewBox="0 0 260 10" preserveAspectRatio="none"><path d="M2,6 Q65,1 130,5 Q195,9 258,3" stroke="#ff6b6b" stroke-width="3" fill="none" stroke-linecap="round"/></svg></span></h1>
-  </div>
-  <p class="sub" data-i18n="subtitle">Every skincare label makes promises. Some are regulated. Most aren't. Scan a claim, then scan the ingredient list — we'll tell you if this specific bottle backs up what it says.</p>
+  <div class="investig-tag" data-i18n="investigTag">Investigation</div>
+  <h1><span data-i18n="h1part1">The Claim </span><em class="accent-em" data-i18n="h1part2">Decoder</em></h1>
+  <p class="sub byline" data-i18n="subtitle">Every skincare label makes promises. Some are regulated. Most aren't. Scan a claim, then scan the ingredient list — we'll tell you if this specific bottle backs up what it says.</p>
 
   <div class="mode-tabs">
     <button class="mode-tab active" data-mode="search" data-i18n="tabSearch">🔎 Search &amp; Browse</button>
@@ -518,7 +538,7 @@ const CONFIDENCE_I18N = { en: {High:"High", Medium:"Medium", Low:"Low"}, es: {Hi
 
 const STRINGS = {
   en: {
-    h1part1:"The Claim ", h1part2:"Decoder",
+    h1part1:"The Claim ", h1part2:"Decoder", investigTag:"Investigation",
     subtitle:"Every skincare label makes promises. Some are regulated. Most aren't. Scan a claim, then scan the ingredient list — we'll tell you if this specific bottle backs up what it says.",
     tabSearch:"🔎 Search & Browse", tabCheck:"🧴 Check a Product",
     searchLabel:"Search for a skincare claim",
@@ -582,7 +602,7 @@ const STRINGS = {
     noGlossaryMatchPhoto:"We couldn't match any of our 17 known claims in that photo. You can edit the text below, or try Search & Browse instead."
   },
   es: {
-    h1part1:"El Decodificador de ", h1part2:"Afirmaciones",
+    h1part1:"El Decodificador de ", h1part2:"Afirmaciones", investigTag:"Investigación",
     subtitle:"Cada etiqueta de cuidado de la piel hace promesas. Algunas están reguladas. La mayoría no. Escanea una afirmación, luego escanea la lista de ingredientes — te diremos si este envase en particular respalda lo que dice.",
     tabSearch:"🔎 Buscar y Explorar", tabCheck:"🧴 Verificar un Producto",
     searchLabel:"Buscar una afirmación de cuidado de la piel",
@@ -647,11 +667,22 @@ const STRINGS = {
   }
 };
 
+// Masthead date (e.g. "JULY 2026" / "JULIO 2026"), refreshed whenever the
+// language toggles so it reads correctly in either language.
+function setMastheadDate(lang){
+  const now = new Date();
+  const monthsEn = ['JANUARY','FEBRUARY','MARCH','APRIL','MAY','JUNE','JULY','AUGUST','SEPTEMBER','OCTOBER','NOVEMBER','DECEMBER'];
+  const monthsEs = ['ENERO','FEBRERO','MARZO','ABRIL','MAYO','JUNIO','JULIO','AGOSTO','SEPTIEMBRE','OCTUBRE','NOVIEMBRE','DICIEMBRE'];
+  const months = lang === 'es' ? monthsEs : monthsEn;
+  document.getElementById('mastheadDate').textContent = months[now.getMonth()] + ' ' + now.getFullYear();
+}
+
 function applyLanguage(lang){
   currentLang = lang;
   document.documentElement.lang = lang;
   document.getElementById('langBtnEn').classList.toggle('active', lang==='en');
   document.getElementById('langBtnEs').classList.toggle('active', lang==='es');
+  setMastheadDate(lang);
 
   document.querySelectorAll('[data-i18n]').forEach(el=>{
     const key = el.dataset.i18n;
@@ -741,6 +772,7 @@ function renderChips(){
   });
 }
 renderChips();
+setMastheadDate('en');
 
 // Returns a claim's content field in the current language, falling back
 // to English if a Spanish field is somehow missing — never show a blank.
