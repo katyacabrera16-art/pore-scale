@@ -61,8 +61,17 @@ const { en, es, pubDate, category } = Astro.props;
   }
   .lang-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    /* min(280px, 100%) keeps each track from forcing overflow on
+       screens narrower than 2×280px — auto-fit alone still demands the
+       full 280px minimum even when the container can't offer it. */
+    grid-template-columns: repeat(auto-fit, minmax(min(280px, 100%), 1fr));
     gap: 12px;
+  }
+
+  @media (max-width: 640px) {
+    .lang-grid {
+      grid-template-columns: 1fr;
+    }
   }
   .lang-card {
     display: block;
