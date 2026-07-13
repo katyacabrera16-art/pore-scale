@@ -20,7 +20,12 @@ const pageDescription = "La historia detrás de Pore Scale — y por qué creé 
 			main {
 				max-width: 680px;
 				margin: 0 auto;
-				padding: 3.5rem 1.5rem 5rem;
+				/* Scales smoothly with viewport width instead of jumping at a
+				   fixed breakpoint — the old max-width:480px cutoff didn't line
+				   up with Header's own max-width:640px nav-wrap breakpoint, so
+				   phones in that gap got the tall 2-row header AND the full
+				   desktop top padding at once, reading as a big empty gap. */
+				padding: clamp(1.1rem, 6vw, 3.5rem) 1.5rem 5rem;
 				position: relative;
 			}
 
@@ -175,8 +180,8 @@ const pageDescription = "La historia detrás de Pore Scale — y por qué creé 
 				color: var(--muted);
 			}
 
-			@media (max-width: 480px) {
-				main { padding: 1.25rem 1.25rem 4rem; }
+			@media (max-width: 640px) {
+				main { padding-left: 1.25rem; padding-right: 1.25rem; padding-bottom: 4rem; }
 				section { margin: 2.25rem 0; }
 			}
 		</style>
