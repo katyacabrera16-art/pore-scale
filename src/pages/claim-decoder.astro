@@ -173,9 +173,13 @@ const pageDescription =
   .search-row .search-box-pill{
     flex:1 1 220px; display:flex; align-items:center; gap:10px;
     background:#fff; border:1.5px solid var(--coral-vivid); border-radius:100px;
-    padding:13px 20px; transition:background .15s ease;
+    padding:13px 20px; transition:background .15s ease, transform .15s ease;
   }
   .search-row .search-box-pill:hover, .search-row .search-box-pill:focus-within{background:#FFF3EE;}
+  /* Drop-target feedback while a pill is being dragged over the search
+     bar — background tint + slight scale, removed the instant the drag
+     leaves or ends. */
+  .search-row .search-box-pill.drag-hover{background:#FFF3EE; transform:scale(1.03);}
   .search-row .search-box-pill .search-icon{font-size:15px; flex-shrink:0; line-height:1;}
   .search-row .search-box-pill input{
     flex:1; min-width:0; border:none; outline:none; background:transparent;
@@ -230,13 +234,23 @@ const pageDescription =
     padding:9px 16px;border-radius:100px;border:1px solid #D9EAE0;
     background:linear-gradient(135deg, #EAF5EE 0%, #F6F3EC 55%, #EFF7F1 100%);
     font-family:Georgia,'Times New Roman',serif;font-size:13.5px;font-weight:500;
-    color:var(--ink);cursor:pointer;user-select:none;
+    color:var(--ink);cursor:grab;user-select:none;touch-action:none;
     animation:floaty 5.5s ease-in-out infinite;
     transition:box-shadow .2s ease, background .2s ease, border-color .2s ease, color .2s ease;
   }
   .chip:hover{
     background:linear-gradient(135deg, #E2F2E9 0%, #FFFFFF 55%, #E6F4EB 100%);
     box-shadow:0 6px 16px -6px rgba(46,125,91,.28);
+  }
+  /* While a pointer-drag is in progress: no floaty animation (it would
+     fight the drag transform), raised above everything, no transition
+     lag following the pointer. Removed the instant the drag ends —
+     whether dropped on the search bar or not — which is what produces
+     the "snap back" to its resting spot in the pill field either way. */
+  .chip.dragging{
+    animation:none; transition:none; cursor:grabbing;
+    position:relative; z-index:50;
+    box-shadow:0 10px 24px -6px rgba(46,125,91,.35);
   }
   .chip.active{
     background:linear-gradient(135deg, var(--coral-vivid), #F4A261);
@@ -339,6 +353,15 @@ const pageDescription =
   #result{display:none;}
   #result.show{display:block;animation:cardIn .3s ease;}
   @keyframes cardIn{from{opacity:0;transform:translateY(10px) scale(.98);}to{opacity:1;transform:translateY(0) scale(1);}}
+
+  /* Hidden by default (not just de-emphasized) — only shown alongside
+     #result.show, giving a way back to the pristine drag/browse state. */
+  #resultReset{display:none; text-align:center; margin:-8px 0 24px;}
+  #resultReset.show{display:block;}
+  .reset-link{
+    background:none; border:none; color:var(--ink-soft); text-decoration:underline;
+    cursor:pointer; font-family:Georgia,'Times New Roman',serif; font-size:13.5px;
+  }
 
   .investigating{text-align:center; padding:50px 20px;}
   .investigating .magnifier{font-size:44px; display:inline-block; animation:searchMove 1.8s ease-in-out infinite;}
@@ -467,6 +490,9 @@ const pageDescription =
     <p class="chip-label" data-i18n="browseAll">Or browse all claims</p>
     <div class="chips" id="chipContainer"></div>
     <div id="result" aria-live="polite"></div>
+    <div id="resultReset">
+      <button type="button" class="reset-link" id="resetResultBtn" data-i18n="dragAnotherClaim">← Drag another claim to reveal it</button>
+    </div>
     <div class="empty" id="emptyState" role="status" data-i18n="emptyState">Nothing matches that yet — try a shorter word, or browse the list above.</div>
   </div>
 
@@ -644,6 +670,8 @@ const STRINGS = {
     searchLabel:"Search for a skincare claim",
     searchPlaceholder:'Type a claim — e.g. "clean," "hypoallergenic," "reef safe"…',
     browseAll:"Or browse all claims",
+    dragAnotherClaim:"← Drag another claim to reveal it",
+    pillDragHint:"drag onto the search bar, or press Enter to reveal",
     emptyState:"Nothing matches that yet — try a shorter word, or browse the list above.",
     toggleScan:"📸 Scan a Label", toggleType:"⌨️ Type or Paste Instead",
     step1Title:"Step 1 — Photo of the claim",
@@ -713,6 +741,8 @@ const STRINGS = {
     searchLabel:"Buscar una afirmación de cuidado de la piel",
     searchPlaceholder:'Escribe una afirmación — ej. "limpio," "hipoalergénico," "seguro para arrecifes"…',
     browseAll:"O explora todas las afirmaciones",
+    dragAnotherClaim:"← Arrastrar otra afirmación",
+    pillDragHint:"arrastra hacia la barra de búsqueda, o presiona Enter para revelar",
     emptyState:"Nada coincide todavía — prueba con una palabra más corta, o explora la lista de arriba.",
     toggleScan:"📸 Escanear una Etiqueta", toggleType:"⌨️ Escribir o Pegar en su Lugar",
     step1Title:"Paso 1 — Foto de la afirmación",
@@ -855,25 +885,100 @@ function matchesAlias(normalizedText, alias){
 
 const chipContainer = document.getElementById('chipContainer');
 const resultEl = document.getElementById('result');
+const resultResetEl = document.getElementById('resultReset');
 const emptyEl = document.getElementById('emptyState');
 const searchInput = document.getElementById('searchInput');
+const searchModeTrigger = document.getElementById('searchModeTrigger');
 
 function renderChips(){
   chipContainer.innerHTML = '';
   CLAIMS.forEach((c,i)=>{
     const chip = document.createElement('button');
     chip.className='chip';
-    chip.textContent = (currentLang === 'es' && c.es) ? c.es.name : c.name;
+    const name = (currentLang === 'es' && c.es) ? c.es.name : c.name;
+    chip.textContent = name;
     chip.dataset.index=i;
+    chip.setAttribute('aria-label', `${name} — ${STRINGS[currentLang].pillDragHint}`);
     // Randomized float timing per pill (4.6s-6.4s duration, 0-1.4s delay)
     // so they drift out of sync instead of bobbing like a grid.
     chip.style.animationDuration = (4.6 + Math.random() * 1.8).toFixed(2) + 's';
     chip.style.animationDelay = (Math.random() * 1.4).toFixed(2) + 's';
-    chip.addEventListener('click',()=>{ chip.classList.add('pressed'); setTimeout(()=>chip.classList.remove('pressed'),280); selectClaim(i); });
+    // No click handler at all — a plain tap/click on a pill does nothing.
+    // Reveal only happens by dragging it onto the search bar (wireChipDrag,
+    // pointer events so mouse and touch share one code path) or via the
+    // Enter/Space keyboard fallback below, for anyone who can't drag.
+    wireChipDrag(chip, i);
+    chip.addEventListener('keydown', (e)=>{
+      if(e.key === 'Enter' || e.key === ' '){
+        e.preventDefault();
+        revealClaim(i);
+      }
+    });
     chipContainer.appendChild(chip);
   });
 }
 renderChips();
+
+// Custom drag via Pointer Events (not native HTML5 drag-and-drop, which
+// mobile Safari/Chrome support inconsistently for arbitrary elements) —
+// one code path for mouse and touch alike. The pill follows the pointer
+// via a transform only; nothing about its place in the pill field ever
+// actually changes, so removing that transform at drag-end is the whole
+// "snap back" — true whether the drop hit the search bar or missed it.
+const DRAG_THRESHOLD_PX = 5;
+function wireChipDrag(chip, i){
+  let dragging = false;
+  let startX = 0, startY = 0;
+
+  chip.addEventListener('pointerdown', (e)=>{
+    if(e.button !== undefined && e.button !== 0) return; // left click / primary touch only
+    startX = e.clientX; startY = e.clientY;
+    dragging = false;
+    chip.setPointerCapture(e.pointerId);
+
+    const onMove = (ev)=>{
+      const dx = ev.clientX - startX, dy = ev.clientY - startY;
+      if(!dragging){
+        if(Math.abs(dx) < DRAG_THRESHOLD_PX && Math.abs(dy) < DRAG_THRESHOLD_PX) return;
+        dragging = true;
+        chip.classList.add('dragging');
+      }
+      chip.style.transform = `translate(${dx}px, ${dy}px)`;
+      searchModeTrigger.classList.toggle('drag-hover', isOverDropzone(ev.clientX, ev.clientY));
+    };
+
+    const onUp = (ev)=>{
+      chip.removeEventListener('pointermove', onMove);
+      chip.removeEventListener('pointerup', onUp);
+      chip.removeEventListener('pointercancel', onUp);
+      searchModeTrigger.classList.remove('drag-hover');
+      chip.classList.remove('dragging');
+      chip.style.transform = ''; // snap back to its resting spot, hit or miss
+      if(dragging && isOverDropzone(ev.clientX, ev.clientY)){
+        revealClaim(i);
+      }
+      dragging = false;
+    };
+
+    chip.addEventListener('pointermove', onMove);
+    chip.addEventListener('pointerup', onUp);
+    chip.addEventListener('pointercancel', onUp);
+  });
+}
+
+function isOverDropzone(x, y){
+  const rect = searchModeTrigger.getBoundingClientRect();
+  return x >= rect.left && x <= rect.right && y >= rect.top && y <= rect.bottom;
+}
+
+// Shared by a successful drag-drop and the Enter/Space keyboard fallback
+// — mirrors what typing the claim's name into the search bar and hitting
+// Enter already does, so the end state looks the same regardless of how
+// the user got there.
+function revealClaim(i){
+  searchInput.value = cc(CLAIMS[i], 'name');
+  selectClaim(i);
+}
 
 // Returns a claim's content field in the current language, falling back
 // to English if a Spanish field is somehow missing — never show a blank.
@@ -990,6 +1095,7 @@ function toggleEvidence(idx){
 function renderCard(c){
   resultEl.innerHTML = cardHTML(c, 'search');
   resultEl.classList.add('show');
+  resultResetEl.classList.add('show');
   emptyEl.style.display='none';
 }
 
@@ -1000,6 +1106,18 @@ function selectClaim(i){
   renderCard(CLAIMS[i]);
   resultEl.scrollIntoView({behavior:'smooth', block:'nearest'});
 }
+
+// Returns to the pristine drag/browse state — no result, no active pill,
+// search bar cleared. The only way back once a claim has been revealed.
+function resetBrowseResult(){
+  resultEl.classList.remove('show');
+  resultEl.innerHTML = '';
+  resultResetEl.classList.remove('show');
+  document.querySelectorAll('.chip').forEach(el=>{ el.classList.remove('active'); el.classList.remove('hidden'); });
+  searchInput.value = '';
+  emptyEl.style.display = 'none';
+}
+document.getElementById('resetResultBtn').addEventListener('click', resetBrowseResult);
 
 searchInput.addEventListener('input', ()=>{
   const q = searchInput.value.trim().toLowerCase();
@@ -1019,7 +1137,12 @@ searchInput.addEventListener('keydown', (e)=>{
     if(idx>-1) selectClaim(idx);
   }
 });
-selectClaim(0);
+// Deliberately no default reveal here — the browse section must start
+// pristine (only hero, search row, and floating pills) until a pill is
+// dragged onto the search bar or a claim is typed in directly. An eager
+// selectClaim(0) here previously showed "Clean / Clean Beauty" fully
+// revealed on every page load before any interaction, which is the same
+// class of bug as the evidence-expanded-by-default issue fixed earlier.
 
 document.querySelectorAll('.mode-tab').forEach(tab=>{
   tab.addEventListener('click', ()=>{
