@@ -703,7 +703,7 @@ const STRINGS = {
     confirmDecode:"✨ Yes, decode this", editTextInstead:"Not right? Edit the text instead",
     noneOfTheseFound:"None found in the ingredient list you provided.",
     noClaimsSelected:"No claims selected — add one below, or edit the text.",
-    noGlossaryMatchPhoto:"We couldn't match any of our 17 known claims in that photo. You can edit the text below, or try Search & Browse instead."
+    noGlossaryMatchPhoto:"We couldn't confidently match any of our 17 known claims in that photo. Add one manually below, or edit the text instead."
   },
   es: {
     h1part1:"El Decodificador de ", h1part2:"Afirmaciones",
@@ -772,7 +772,7 @@ const STRINGS = {
     confirmDecode:"✨ Sí, decodificar esto", editTextInstead:"¿No es correcto? Edita el texto",
     noneOfTheseFound:"Ninguno encontrado en la lista de ingredientes que proporcionaste.",
     noClaimsSelected:"No hay afirmaciones seleccionadas — agrega una abajo, o edita el texto.",
-    noGlossaryMatchPhoto:"No pudimos identificar ninguna de nuestras 17 afirmaciones conocidas en esa foto. Puedes editar el texto abajo, o probar Buscar y Explorar."
+    noGlossaryMatchPhoto:"No pudimos identificar con confianza ninguna de nuestras 17 afirmaciones conocidas en esa foto. Agrega una manualmente abajo, o edita el texto en su lugar."
   }
 };
 
@@ -1236,22 +1236,40 @@ function loadPreview(file, zoneId, previewSectionId, previewImgId){
   document.getElementById(previewSectionId).style.display='block';
 }
 
-// Preprocesses a photo before handing it to the text reader: converts to
-// grayscale, then binarizes to pure black/white using Otsu's method
-// (computes the ideal cutoff from the image's own brightness histogram,
-// rather than a guessed fixed value). Tesseract reads clean black-on-
-// white far more reliably than a raw color photo with glare, shadows, or
-// a busy background. NOTE: the uploaded "Case File" prototype export
-// didn't actually contain the grayscale/contrast/resize preprocessing it
-// was described as having — this keeps the working, already-tested
-// preprocessing from the previous build instead of dropping it. Flagged
-// to Katya; easy to swap for a different approach if she wants one.
+// Preprocesses a photo before handing it to the text reader: downscales,
+// converts to grayscale, then binarizes to pure black/white using Otsu's
+// method (computes the ideal cutoff from the image's own brightness
+// histogram, rather than a guessed fixed value). Tesseract reads clean
+// black-on-white far more reliably than a raw color photo with glare,
+// shadows, or a busy background. NOTE: the uploaded "Case File" prototype
+// export didn't actually contain the grayscale/contrast/resize
+// preprocessing it was described as having — this keeps the working,
+// already-tested preprocessing from the previous build instead of
+// dropping it. Flagged to Katya; easy to swap for a different approach
+// if she wants one.
+//
+// EXIF orientation: deliberately not corrected here — every current
+// mobile browser (mobile Safari included, for years now) already renders
+// <img> upright per EXIF and reports naturalWidth/naturalHeight in that
+// same orientation, and canvas drawImage() draws exactly what the <img>
+// displays. Re-deriving orientation from the raw file would be redundant
+// work and a real source of bugs (double-rotation) on the browsers that
+// matter here. If a real device photo still comes out sideways after
+// this fix, that's a different, narrower bug worth its own report.
 function preprocessImageForOCR(imgEl){
   const canvas = document.createElement('canvas');
-  canvas.width = imgEl.naturalWidth;
-  canvas.height = imgEl.naturalHeight;
+  // Real phone-camera photos run 4000px+ on a side — binarizing that
+  // pixel-by-pixel below, and then handing it to Tesseract, is slow
+  // enough on a real device (vs. a clean desktop screenshot) that it can
+  // look like the scan step has frozen with no error and no way out.
+  // 1600px keeps plenty of resolution for front-of-bottle text while
+  // keeping this fast and memory-safe on a phone.
+  const MAX_DIMENSION = 1600;
+  const scale = Math.min(1, MAX_DIMENSION / Math.max(imgEl.naturalWidth, imgEl.naturalHeight));
+  canvas.width = Math.round(imgEl.naturalWidth * scale);
+  canvas.height = Math.round(imgEl.naturalHeight * scale);
   const ctx = canvas.getContext('2d');
-  ctx.drawImage(imgEl, 0, 0);
+  ctx.drawImage(imgEl, 0, 0, canvas.width, canvas.height);
   const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
   const data = imageData.data;
 
@@ -1291,6 +1309,20 @@ function preprocessImageForOCR(imgEl){
   return canvas.toDataURL('image/png');
 }
 
+// A real device photo can occasionally make Tesseract's WASM worker
+// churn far longer than a clean scan ever would (or, rarely, wedge
+// entirely) — without a hard ceiling, the awaited recognize() call never
+// resolves OR rejects, so the try/catch below never runs and the scan
+// screen is stuck on its spinner forever with no error and no way out.
+// Racing against a timeout guarantees the catch block always fires.
+const OCR_TIMEOUT_MS = 25000;
+function withOcrTimeout(promise){
+  return Promise.race([
+    promise,
+    new Promise((_, reject) => setTimeout(() => reject(new Error('OCR timed out')), OCR_TIMEOUT_MS))
+  ]);
+}
+
 wireDropzone('dropzone1','fileInput1','previewSection1','previewImg1');
 wireDropzone('dropzone2','fileInput2','previewSection2','previewImg2');
 
@@ -1320,7 +1352,7 @@ document.getElementById('decodeBtn1').addEventListener('click', async ()=>{
 
   try{
     const preprocessed = preprocessImageForOCR(document.getElementById('previewImg1'));
-    const { data: { text } } = await Tesseract.recognize(preprocessed, 'eng');
+    const { data: { text } } = await withOcrTimeout(Tesseract.recognize(preprocessed, 'eng'));
     const cleaned = text.trim();
     const claimBox = document.getElementById('claimTextInput');
     const hint = document.getElementById('claimTextHint');
@@ -1336,12 +1368,19 @@ document.getElementById('decodeBtn1').addEventListener('click', async ()=>{
     const foundIdx = [];
     CLAIMS.forEach((c,i)=>{ if(c.aliases.some(a => matchesAlias(normalized, a))) foundIdx.push(i); });
 
-    if(foundIdx.length){
-      showClaimMatchConfirm(foundIdx, cleaned);
-    } else {
+    if(cleaned.replace(/[^a-zA-Z]/g,'').length < 4){
+      // Nothing legible at all — no point showing an empty pill card,
+      // straight to manual typing.
       setInputMode('type');
-      hint.textContent = cleaned.replace(/[^a-zA-Z]/g,'').length < 4 ? S.couldntReadClaim : S.noGlossaryMatchPhoto;
+      hint.textContent = S.couldntReadClaim;
       claimBox.focus();
+    } else {
+      // Show the pill-confirmation card even when foundIdx is empty: a
+      // confident zero-match result is still explicit failure feedback
+      // (not silence), and it puts the "+ Add" glossary picker in front
+      // of the user immediately instead of dropping them into raw text
+      // with no structured way back to the glossary.
+      showClaimMatchConfirm(foundIdx, cleaned);
     }
   } catch(err){
     setInputMode('type');
@@ -1390,9 +1429,13 @@ function showClaimMatchConfirm(foundIdx, rawText){
     wrap.querySelector('#addClaimBtn').disabled = available.length === 0;
   }
 
+  // A confident zero-match result still gets its own explicit message —
+  // never "We found this on the label:" over an empty pill list, which
+  // would read like a silent failure rather than a clear one.
+  const headerText = foundIdx.length ? S.weFoundClaims : S.noGlossaryMatchPhoto;
   wrap.innerHTML = `
     <div class="match-confirm">
-      <p>${S.weFoundClaims}</p>
+      <p>${headerText}</p>
       <div class="match-pills"></div>
       <div class="add-item-row">
         <select id="addClaimSelect" aria-label="${S.addClaimLabel}"></select>
@@ -1449,7 +1492,7 @@ document.getElementById('decodeBtn2').addEventListener('click', async ()=>{
 
   try{
     const preprocessed = preprocessImageForOCR(document.getElementById('previewImg2'));
-    const { data: { text } } = await Tesseract.recognize(preprocessed, 'eng');
+    const { data: { text } } = await withOcrTimeout(Tesseract.recognize(preprocessed, 'eng'));
     const cleaned = text.trim();
     const ingBox = document.getElementById('ingredientTextInput');
     ingBox.value = cleaned;
