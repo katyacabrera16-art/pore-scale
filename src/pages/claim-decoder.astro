@@ -20,8 +20,16 @@ const pageDescription =
 <BaseHead title={pageTitle} description={pageDescription} />
 <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js" is:inline></script>
 <script src="/claims-data.js" is:inline></script>
-<style>
-  /* Component tokens aliased to the site's real design tokens (see
+<style is:global>
+  /* is:global — every interactive piece of this page (chips, case-cards,
+     stamps, evidence bodies) is built at runtime via innerHTML/appendChild
+     in the script below, not written in this template. Astro's scoped
+     styles rewrite selectors to require a data-astro-cid attribute that
+     only gets attached to markup present at build time, so a scoped
+     block here would silently fail to style (or hide) anything rendered
+     by JS — e.g. .evidence-body{display:none} would never match, and
+     the "collapsed by default" case-file reveal would break. Component
+     tokens aliased to the site's real design tokens (see
      src/styles/global.css, loaded globally via BaseHead) rather than
      hand-copied hex values, so this page stays in sync with the rest
      of the site automatically. --coral / --amber / --teal / --white /
@@ -830,7 +838,7 @@ function cardHTML(c, idx){
       </div>
       <div class="case-claim-name">${name}</div>
       <div class="case-sub">${es.sub}</div>
-      <button class="see-evidence-btn" onclick="toggleEvidence(${idx})" id="evBtn-${idx}">${S.seeEvidence}</button>
+      <button class="see-evidence-btn" onclick="toggleEvidence('${idx}')" id="evBtn-${idx}">${S.seeEvidence}</button>
 
       <div class="evidence-body" id="evBody-${idx}">
         <span class="badge ${c.tier}">${TIER_LABEL[currentLang][c.tier]}</span>
