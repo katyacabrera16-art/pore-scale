@@ -48,15 +48,32 @@ const pageDescription =
     --teal-bg: color-mix(in srgb, var(--teal) 16%, white);
     --line: var(--seafoam-border);
     --radius: 20px;
+    /* "Editorial Juguetón" landing restyle only — a distinct, more
+       saturated coral than the sitewide --coral (#ff6b6b), scoped to
+       just the hero/search/browse-pills area per the design spec.
+       Doesn't touch --coral itself so the scan-result stamps/badges
+       elsewhere on this page keep their existing color untouched. */
+    --coral-vivid: #F2765C;
+    --coral-vivid-dark: #D4573F;
+  }
+  /* Self-hosted (not Google Fonts) so this page's own privacy claim
+     below — "no data ever leaves your browser" / "the only network
+     request this tool makes is..." — stays true; a variable font, so
+     one file covers both the 600 and 700 weights used on the h1. */
+  @font-face{
+    font-family:'Fraunces';
+    font-weight:600 700;
+    font-style:normal;
+    font-display:swap;
+    src:url('/fonts/fraunces-latin-var.woff2') format('woff2');
   }
   *{box-sizing:border-box;}
   html{scroll-behavior:smooth;}
   body{
     margin:0;
-    /* Soft seafoam-to-amber gradient, per the newest "white hero card"
-       direction — replaces both the earlier dot-pattern/blobs and the
-       flat cream masthead background from the previous two rounds. */
-    background:linear-gradient(180deg, #f0f7f5, #fdf1d9);
+    /* Soft coral-to-amber-to-seafoam gradient behind the hero card, per
+       the "Editorial Juguetón" landing restyle. */
+    background:linear-gradient(160deg, #fdede8 0%, #fdf1d9 55%, #f0f7f5 100%);
     color:var(--ink);
     font-family:Georgia,'Times New Roman',serif;
     -webkit-font-smoothing:antialiased;
@@ -66,14 +83,16 @@ const pageDescription =
 
   .wrap{max-width:760px;margin:0 auto;padding:48px 24px 80px;position:relative;z-index:1;}
 
-  .lang-toggle-row{display:flex; justify-content:flex-end; margin-bottom:14px;}
-  .lang-toggle{display:flex; gap:2px; background:#eef4f2; padding:3px; border-radius:8px;}
+  /* Repositioned inside the hero card, top-right, per the landing
+     restyle spec — was previously its own row above the card. */
+  .lang-toggle-row{position:absolute; top:22px; right:24px; z-index:2; margin-bottom:0;}
+  .lang-toggle{display:flex; gap:2px; background:#F6F3EC; padding:3px; border-radius:100px;}
   .lang-btn{
-    border:none; background:transparent; padding:5px 11px; border-radius:6px;
-    font-family:Georgia,'Times New Roman',serif; font-size:12.5px; font-weight:700;
-    color:#4a7a72; cursor:pointer; letter-spacing:.03em; transition:all .15s ease;
+    border:none; background:transparent; padding:7px 14px; border-radius:100px;
+    font-family:Georgia,'Times New Roman',serif; font-size:12px; font-weight:700;
+    color:#A99C86; cursor:pointer; letter-spacing:.03em; transition:all .15s ease;
   }
-  .lang-btn.active{background:#fff; color:#1a3a34; box-shadow:0 1px 4px rgba(0,0,0,.08);}
+  .lang-btn.active{background:#fff; color:var(--coral-vivid-dark); box-shadow:0 2px 6px rgba(42,39,37,.1);}
 
   /* Kept even though the flask icon that first used it is long gone —
      the dropzone icons further down still reference this same
@@ -91,31 +110,54 @@ const pageDescription =
     box-shadow:0 20px 40px rgba(26,58,52,.12);
     opacity:0; transform:translateY(10px);
     animation:riseIn .6s ease forwards .1s;
+    position:relative; overflow:hidden;
   }
   @keyframes riseIn{to{opacity:1; transform:translateY(0);}}
-  .hero-icon{
-    width:52px; height:52px; border-radius:16px; color:#fff; font-size:24px;
-    background:linear-gradient(135deg, var(--coral), #ff9494);
-    display:flex; align-items:center; justify-content:center; margin-bottom:18px;
+  /* Teal → coral → amber underline bar across the top of the card. */
+  .hero-card::before{
+    content:""; position:absolute; top:0; left:0; right:0; height:6px;
+    background:linear-gradient(90deg, var(--teal), var(--coral-vivid), var(--amber));
+  }
+  /* Soft corner glow, matching the "Editorial Juguetón" reference. */
+  .hero-card::after{
+    content:""; position:absolute; top:-60px; right:-60px; width:200px; height:200px;
+    background:radial-gradient(circle, rgba(242,118,92,.18), transparent 70%);
+    border-radius:50%; pointer-events:none;
   }
 
   h1{
-    font-family:Georgia,'Times New Roman',serif;font-weight:800;font-size:clamp(24px,4.5vw,29px);
-    line-height:1.22;margin:0 0 10px; letter-spacing:-.01em; color:var(--forest);
+    font-family:'Fraunces',Georgia,'Times New Roman',serif;font-weight:700;font-size:clamp(26px,4.8vw,32px);
+    line-height:1.2;margin:0 0 10px; letter-spacing:-.01em; color:var(--ink);
+    display:flex; align-items:center; flex-wrap:wrap; column-gap:6px;
+    padding-right:88px;
   }
-  h1 .accent-em, .h1part2-holder{font-style:normal; color:var(--forest); font-weight:800;}
+  h1 .accent-em, .h1part2-holder{font-style:normal; color:var(--coral-vivid); font-weight:700;}
+
+  /* Droplet mark — same outline teardrop path as the homepage's
+     "Greenwashing" pillar icon (src/pages/index.astro iconSVG('droplet')),
+     reused rather than redrawn, with a gentle continuous drip loop. */
+  .drop-icon{
+    display:inline-flex; width:.85em; height:.85em; flex-shrink:0;
+    animation:dripBounce 2.6s ease-in-out infinite;
+  }
+  .drop-icon svg{width:100%; height:100%; display:block;}
+  @keyframes dripBounce{
+    0%,100%{transform:translateY(0) scale(1);}
+    50%{transform:translateY(.08em) scale(.94);}
+  }
+  @media (prefers-reduced-motion: reduce){
+    .drop-icon{animation:none;}
+  }
 
   .sub.byline{
     font-size:14.5px;line-height:1.55;color:#6b7a76;margin:0 0 22px;max-width:56ch;
     font-style:normal; border-bottom:none; padding-bottom:0;
   }
 
-  /* Flat gray pill tabs, now living inside the hero card itself. Kept
-     the mobile overflow-x fix (white-space/flex-shrink/overflow-x) from
-     the earlier rounds so the two tabs still scroll horizontally
-     instead of overflowing the card on narrow screens, since the
-     uploaded prototype doesn't account for mobile width here either. */
-  .mode-tabs{display:flex; gap:8px; margin-bottom:0; width:auto; max-width:100%; overflow-x:auto; -webkit-overflow-scrolling:touch;}
+  /* .mode-tab is kept only as the shared JS hook (the click handler
+     queries `.mode-tab` generically to drive the search/scan panel
+     toggle) — the search-row rules below are more specific and are the
+     ones that actually paint the search box + scan button pills. */
   .mode-tab{
     border:none; background:#f5f7f6; padding:13px 18px; border-radius:12px;
     font-family:Georgia,'Times New Roman',serif; font-size:12.5px; font-weight:700; color:#999;
@@ -124,6 +166,36 @@ const pageDescription =
   }
   .mode-tab.active{background:var(--forest); color:#fff;}
   .mode-tab:hover:not(.active){background:#eaeeec;}
+
+  /* Search bar + scan button, same row, matching pill styling — replaces
+     the old flat mode-tab strip as the search/scan entry point. */
+  .search-row{display:flex; gap:12px; margin-bottom:6px; flex-wrap:wrap;}
+  .search-row .search-box-pill{
+    flex:1 1 220px; display:flex; align-items:center; gap:10px;
+    background:#fff; border:1.5px solid var(--coral-vivid); border-radius:100px;
+    padding:13px 20px; transition:background .15s ease;
+  }
+  .search-row .search-box-pill:hover, .search-row .search-box-pill:focus-within{background:#FFF3EE;}
+  .search-row .search-box-pill .search-icon{font-size:15px; flex-shrink:0; line-height:1;}
+  .search-row .search-box-pill input{
+    flex:1; min-width:0; border:none; outline:none; background:transparent;
+    font-family:Georgia,'Times New Roman',serif; font-size:14.5px; color:var(--coral-vivid-dark);
+  }
+  .search-row .search-box-pill input::placeholder{color:var(--coral-vivid-dark); opacity:.7;}
+  .search-row .scan-btn-pill{
+    display:flex; align-items:center; gap:8px;
+    background:#fff; border:1.5px solid var(--coral-vivid); color:var(--coral-vivid-dark);
+    font-weight:700; font-family:Georgia,'Times New Roman',serif; font-size:14px;
+    padding:13px 20px; border-radius:100px; cursor:pointer; white-space:nowrap;
+    transition:background .15s ease, transform .12s ease;
+  }
+  .search-row .scan-btn-pill:hover{background:#FFF3EE;}
+  .search-row .scan-btn-pill:active{transform:scale(.96);}
+  .search-row .scan-btn-pill .cam-icon{font-size:16px; line-height:1; animation:pulseIcon 2.2s ease-in-out infinite;}
+  @keyframes pulseIcon{0%,100%{transform:scale(1);}50%{transform:scale(1.12);}}
+  @media (prefers-reduced-motion: reduce){
+    .search-row .scan-btn-pill .cam-icon{animation:none;}
+  }
 
   .panel{display:none;}
   .panel.active{display:block; animation:fade .25s ease;}
@@ -149,26 +221,34 @@ const pageDescription =
   .type-step textarea::placeholder{color:#8fada5;}
   .input-hint{font-size:12.5px; color:var(--ink-soft); margin:-8px 0 12px;}
 
-  .search-box{position:relative;margin-bottom:16px;}
-  .search-box input{
-    width:100%;padding:15px 18px;font-size:15px;font-family:Georgia,'Times New Roman',serif;
-    border:none;border-radius:14px;background:#f5f7f6;
-    color:var(--ink);outline:none;transition:background .15s ease;
-  }
-  .search-box input:focus{background:#eef4f2;}
-  .search-box input::placeholder{color:#999;}
-
   .chip-label{font-size:12px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-soft);margin:0 0 12px;}
-  .chips{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:40px;}
+  .chips{display:flex;flex-wrap:wrap;gap:12px;margin-bottom:40px;padding:10px 4px 4px;}
+  /* Floating claim pills — soft seafoam gradient, each bobbing at its
+     own randomized duration/delay (set inline per pill in renderChips())
+     so they drift out of sync instead of moving like a mechanical grid. */
   .chip{
-    padding:9px 16px;border-radius:999px;border:1.5px solid var(--line);
-    background:var(--teal-bg);font-family:Georgia,'Times New Roman',serif;font-size:14px;font-weight:500;
-    color:var(--ink);cursor:pointer;transition:transform .15s ease, box-shadow .15s ease, border-color .15s ease, color .15s ease, background .15s ease;
+    padding:9px 16px;border-radius:100px;border:1px solid #D9EAE0;
+    background:linear-gradient(135deg, #EAF5EE 0%, #F6F3EC 55%, #EFF7F1 100%);
+    font-family:Georgia,'Times New Roman',serif;font-size:13.5px;font-weight:500;
+    color:var(--ink);cursor:pointer;user-select:none;
+    animation:floaty 5.5s ease-in-out infinite;
+    transition:box-shadow .2s ease, background .2s ease, border-color .2s ease, color .2s ease;
   }
-  .chip:hover{border-color:var(--coral);color:var(--coral);background:var(--card); transform:translateY(-2px); box-shadow:0 6px 14px rgba(255,110,86,.2);}
-  .chip.active{background:var(--coral);border-color:var(--coral);color:#fff; transform:translateY(-1px); box-shadow:0 4px 12px rgba(255,110,86,.3);}
+  .chip:hover{
+    background:linear-gradient(135deg, #E2F2E9 0%, #FFFFFF 55%, #E6F4EB 100%);
+    box-shadow:0 6px 16px -6px rgba(46,125,91,.28);
+  }
+  .chip.active{
+    background:linear-gradient(135deg, var(--coral-vivid), #F4A261);
+    border-color:transparent; color:#fff; font-weight:600;
+    box-shadow:0 4px 12px rgba(242,118,92,.3);
+  }
   .chip.hidden{display:none;}
   .chip.pressed{animation:press .28s ease;}
+  @keyframes floaty{0%,100%{transform:translateY(0) rotate(0deg);}50%{transform:translateY(-4px) rotate(-1deg);}}
+  @media (prefers-reduced-motion: reduce){
+    .chip{animation:none;}
+  }
   @keyframes press{0%{transform:scale(1);}40%{transform:scale(.94);}100%{transform:scale(1);}}
 
   .dropzone{
@@ -344,29 +424,34 @@ const pageDescription =
 <Header />
 <div class="wrap">
 
-  <div class="lang-toggle-row">
-    <div class="lang-toggle" role="group" aria-label="Language / Idioma">
-      <button class="lang-btn active" id="langBtnEn" data-lang="en">EN</button>
-      <button class="lang-btn" id="langBtnEs" data-lang="es">ES</button>
-    </div>
-  </div>
-
   <div class="hero-card">
-    <div class="hero-icon">🔍</div>
-    <h1><span data-i18n="h1part1">The Claim </span><em class="accent-em" data-i18n="h1part2">Decoder</em></h1>
+    <div class="lang-toggle-row">
+      <div class="lang-toggle" role="group" aria-label="Language / Idioma">
+        <button class="lang-btn active" id="langBtnEn" data-lang="en">EN</button>
+        <button class="lang-btn" id="langBtnEs" data-lang="es">ES</button>
+      </div>
+    </div>
+
+    <h1>
+      <span class="drop-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="#F2765C" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2.69l5.66 5.66a8 8 0 1 1-11.31 0z"/></svg></span>
+      <span data-i18n="h1part1">The Claim </span><em class="accent-em" data-i18n="h1part2">Decoder</em>
+    </h1>
     <p class="sub byline" data-i18n="subtitle">Every skincare label makes promises. Some are regulated. Most aren't. Scan a claim, then scan the ingredient list — we'll tell you if this specific bottle backs up what it says.</p>
 
-    <div class="mode-tabs">
-      <button class="mode-tab active" data-mode="search" data-i18n="tabSearch">🔎 Search &amp; Browse</button>
-      <button class="mode-tab" data-mode="scan" data-i18n="tabCheck">🧴 Check a Product</button>
+    <div class="search-row">
+      <div class="search-box-pill mode-tab active" data-mode="search" id="searchModeTrigger">
+        <span class="search-icon" aria-hidden="true">🔎</span>
+        <label for="searchInput" class="sr-only" data-i18n="searchLabel">Search for a skincare claim</label>
+        <input type="text" id="searchInput" data-i18n-placeholder="searchPlaceholder" placeholder='Type a claim — e.g. "clean," "hypoallergenic," "reef safe"…' autocomplete="off">
+      </div>
+      <button class="scan-btn-pill mode-tab" data-mode="scan" id="scanModeTrigger">
+        <span class="cam-icon" aria-hidden="true">📷</span>
+        <span data-i18n="scanBtnLabel">Check a Product</span>
+      </button>
     </div>
   </div>
 
   <div class="panel active" id="searchPanel">
-    <div class="search-box">
-      <label for="searchInput" class="sr-only" data-i18n="searchLabel">Search for a skincare claim</label>
-      <input type="text" id="searchInput" data-i18n-placeholder="searchPlaceholder" placeholder='Type a claim — e.g. "clean," "hypoallergenic," "reef safe"…' autocomplete="off">
-    </div>
     <p class="chip-label" data-i18n="browseAll">Or browse all claims</p>
     <div class="chips" id="chipContainer"></div>
     <div id="result" aria-live="polite"></div>
@@ -543,6 +628,7 @@ const STRINGS = {
     h1part1:"The Claim ", h1part2:"Decoder",
     subtitle:"Every skincare label makes promises. Some are regulated. Most aren't. Scan a claim, then scan the ingredient list — we'll tell you if this specific bottle backs up what it says.",
     tabSearch:"🔎 Search & Browse", tabCheck:"🧴 Check a Product",
+    scanBtnLabel:"Check a Product",
     searchLabel:"Search for a skincare claim",
     searchPlaceholder:'Type a claim — e.g. "clean," "hypoallergenic," "reef safe"…',
     browseAll:"Or browse all claims",
@@ -607,6 +693,7 @@ const STRINGS = {
     h1part1:"El Decodificador de ", h1part2:"Afirmaciones",
     subtitle:"Cada etiqueta de cuidado de la piel hace promesas. Algunas están reguladas. La mayoría no. Escanea una afirmación, luego escanea la lista de ingredientes — te diremos si este envase en particular respalda lo que dice.",
     tabSearch:"🔎 Buscar y Explorar", tabCheck:"🧴 Verificar un Producto",
+    scanBtnLabel:"Verificar Producto",
     searchLabel:"Buscar una afirmación de cuidado de la piel",
     searchPlaceholder:'Escribe una afirmación — ej. "limpio," "hipoalergénico," "seguro para arrecifes"…',
     browseAll:"O explora todas las afirmaciones",
@@ -758,6 +845,10 @@ function renderChips(){
     chip.className='chip';
     chip.textContent = (currentLang === 'es' && c.es) ? c.es.name : c.name;
     chip.dataset.index=i;
+    // Randomized float timing per pill (4.6s-6.4s duration, 0-1.4s delay)
+    // so they drift out of sync instead of bobbing like a grid.
+    chip.style.animationDuration = (4.6 + Math.random() * 1.8).toFixed(2) + 's';
+    chip.style.animationDelay = (Math.random() * 1.4).toFixed(2) + 's';
     chip.addEventListener('click',()=>{ chip.classList.add('pressed'); setTimeout(()=>chip.classList.remove('pressed'),280); selectClaim(i); });
     chipContainer.appendChild(chip);
   });
