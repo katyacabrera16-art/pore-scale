@@ -299,6 +299,18 @@ const pageDescription =
     padding:8px 16px; border-radius:999px; font-family:Georgia,'Times New Roman',serif;
     font-weight:600; font-size:14px;
   }
+  .match-pill.removable{display:inline-flex; align-items:center; gap:6px; padding-right:10px;}
+  .pill-remove{
+    background:none; border:none; color:inherit; opacity:.65; cursor:pointer;
+    font-size:16px; line-height:1; padding:0;
+  }
+  .pill-remove:hover{opacity:1;}
+  .add-item-row{display:flex; gap:8px; justify-content:center; flex-wrap:wrap; margin:0 0 16px;}
+  .add-item-row select{
+    padding:8px 12px; border-radius:10px; border:1.5px solid var(--line); background:var(--card);
+    font-family:Georgia,'Times New Roman',serif; font-size:13.5px; color:var(--ink); max-width:220px;
+  }
+  .add-item-row select:disabled, .add-item-row button:disabled{opacity:.5; cursor:not-allowed;}
   .match-confirm .confirm-actions{display:flex; gap:10px; justify-content:center; flex-wrap:wrap;}
   .edit-text-link{background:none; border:none; color:var(--ink-soft); text-decoration:underline; cursor:pointer; font-family:Georgia,'Times New Roman',serif; font-size:13.5px;}
 
@@ -685,8 +697,12 @@ const STRINGS = {
     investigating3:"Comparing against known evidence…", investigating4:"Building the case…",
     seeEvidence:"See the full evidence ↓", tryAnotherCase:"↺ Check another product",
     weFoundClaims:"We found this on the label:", weFoundIngredients:"We checked for:",
+    removeAria:"Remove", addItemBtn:"+ Add",
+    addClaimLabel:"Add a claim we might have missed", addClaimPlaceholder:"Choose a claim to add…",
+    addIngredientLabel:"Add an ingredient we might have missed", addIngredientPlaceholder:"Choose an ingredient to add…",
     confirmDecode:"✨ Yes, decode this", editTextInstead:"Not right? Edit the text instead",
     noneOfTheseFound:"None found in the ingredient list you provided.",
+    noClaimsSelected:"No claims selected — add one below, or edit the text.",
     noGlossaryMatchPhoto:"We couldn't match any of our 17 known claims in that photo. You can edit the text below, or try Search & Browse instead."
   },
   es: {
@@ -750,8 +766,12 @@ const STRINGS = {
     investigating3:"Comparando con la evidencia conocida…", investigating4:"Construyendo el caso…",
     seeEvidence:"Ver la evidencia completa ↓", tryAnotherCase:"↺ Verificar otro producto",
     weFoundClaims:"Encontramos esto en la etiqueta:", weFoundIngredients:"Buscamos:",
+    removeAria:"Quitar", addItemBtn:"+ Agregar",
+    addClaimLabel:"Agregar una afirmación que quizás no detectamos", addClaimPlaceholder:"Elige una afirmación para agregar…",
+    addIngredientLabel:"Agregar un ingrediente que quizás no detectamos", addIngredientPlaceholder:"Elige un ingrediente para agregar…",
     confirmDecode:"✨ Sí, decodificar esto", editTextInstead:"¿No es correcto? Edita el texto",
     noneOfTheseFound:"Ninguno encontrado en la lista de ingredientes que proporcionaste.",
+    noClaimsSelected:"No hay afirmaciones seleccionadas — agrega una abajo, o edita el texto.",
     noGlossaryMatchPhoto:"No pudimos identificar ninguna de nuestras 17 afirmaciones conocidas en esa foto. Puedes editar el texto abajo, o probar Buscar y Explorar."
   }
 };
@@ -1056,7 +1076,17 @@ function analyzeClaimText(rawText){
   CLAIMS.forEach((c,i)=>{
     if(c.aliases.some(a => matchesAlias(normalized, a))) matchedClaims.push(i);
   });
+  renderMatchedClaims();
+}
 
+// Renders scanResults + the ingredient-step prompt for whatever is
+// currently in matchedClaims. Shared by the typed-input path (matchedClaims
+// just derived from raw text above) and the photo pill-confirmation path
+// (applyConfirmedClaims() below sets matchedClaims directly from the
+// user-edited pill selection, bypassing re-matching entirely — once a
+// human has reviewed and adjusted the pills, that's the source of truth).
+function renderMatchedClaims(){
+  const S = STRINGS[currentLang];
   document.getElementById('ingPromptWrap').innerHTML = '';
   document.getElementById('step2').style.display = 'none';
   document.getElementById('typeStep2').style.display = 'none';
@@ -1079,6 +1109,13 @@ function analyzeClaimText(rawText){
   } else {
     document.getElementById('scanResults').innerHTML = `<div class="scan-empty">${S.scanClaimNoMatch}</div>`;
   }
+}
+
+function applyConfirmedClaims(idxArray){
+  matchedClaims = idxArray.slice();
+  ingredientCheckResults = {};
+  document.getElementById('claimMatchConfirm').style.display = 'none';
+  renderMatchedClaims();
 }
 
 function analyzeIngredientText(rawText){
@@ -1114,6 +1151,12 @@ function analyzeIngredientText(rawText){
     };
   });
 
+  renderIngredientResults();
+}
+
+// Shared reveal step for the ingredient check, however the hits were
+// decided (auto-matched above, or user-confirmed pills below).
+function renderIngredientResults(){
   document.getElementById('ingPromptWrap').innerHTML = '';
   document.getElementById('step2').style.display = 'none';
   document.getElementById('typeStep2').style.display = 'none';
@@ -1124,6 +1167,26 @@ function analyzeIngredientText(rawText){
   runInvestigation(() => {
     document.getElementById('scanResults').innerHTML = matchedClaims.map(i=>cardHTML(CLAIMS[i], i)).join('');
   });
+}
+
+// Applies a user-confirmed/edited set of detected ingredient names directly
+// (bypassing re-matching) — same principle as applyConfirmedClaims(): once
+// a human has reviewed the pills, that's the source of truth, not another
+// alias-matching pass. Quality still reflects text sparseness, but drops
+// the fuzzy-match penalty since a confirmed pill is no longer ambiguous.
+function applyConfirmedIngredients(confirmedNames, rawText){
+  const normalized = normalizeText(rawText);
+  const textIsSparse = normalized.replace(/[^a-z]/g,'').length < 40;
+  matchedClaims.forEach(i=>{
+    const c = CLAIMS[i];
+    if(!c.redFlagCheck) return;
+    const hits = c.redFlagCheck.ingredients
+      .filter(ing => confirmedNames.includes(ing.name))
+      .map(ing => ing.name);
+    ingredientCheckResults[i] = { checked:true, hits, quality: textIsSparse ? 'medium' : 'high' };
+  });
+  document.getElementById('ingMatchConfirm').style.display = 'none';
+  renderIngredientResults();
 }
 
 const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB — generous for a phone photo, protects against accidental huge uploads
@@ -1291,26 +1354,69 @@ document.getElementById('decodeBtn1').addEventListener('click', async ()=>{
 });
 
 // Renders the "we found this on the label" pill-confirmation card after a
-// successful claim scan. Confirming re-runs the same analyzeClaimText()
-// path the typed-input flow uses (source of the text shouldn't change how
-// it's evaluated); "Edit the text instead" drops into the raw-text box
-// with the OCR result pre-filled, for anyone who wants to fix a misread.
+// successful claim scan. Never analyzes raw OCR output silently — the user
+// can remove a misread pill, add one the scan missed (from the fixed
+// 17-claim glossary), or bail out to "Edit the text instead" for a raw-text
+// fix. Confirming calls applyConfirmedClaims() with whatever's left, not a
+// re-match of the original text, so edits actually take effect.
 function showClaimMatchConfirm(foundIdx, rawText){
   const S = STRINGS[currentLang];
   document.getElementById('typeInputPanel').style.display = 'none';
   const wrap = document.getElementById('claimMatchConfirm');
-  const pills = foundIdx.map(i => `<span class="match-pill">${cc(CLAIMS[i],'name')}</span>`).join('');
+  let confirmedIdx = foundIdx.slice();
+
+  function renderPills(){
+    const pills = confirmedIdx.map(i => `
+      <span class="match-pill removable">${cc(CLAIMS[i],'name')}
+        <button type="button" class="pill-remove" data-idx="${i}" aria-label="${S.removeAria} ${cc(CLAIMS[i],'name')}">×</button>
+      </span>`).join('');
+    wrap.querySelector('.match-pills').innerHTML = pills || `<p style="margin:0; font-style:italic; color:var(--ink-soft);">${S.noClaimsSelected}</p>`;
+    wrap.querySelectorAll('.pill-remove').forEach(btn=>{
+      btn.addEventListener('click', ()=>{
+        confirmedIdx = confirmedIdx.filter(i => i !== Number(btn.dataset.idx));
+        renderPills();
+        renderAddOptions();
+      });
+    });
+    document.getElementById('confirmClaimBtn').disabled = confirmedIdx.length === 0;
+  }
+
+  function renderAddOptions(){
+    const select = wrap.querySelector('#addClaimSelect');
+    const available = CLAIMS.map((c,i)=>i).filter(i => !confirmedIdx.includes(i));
+    select.innerHTML = `<option value="">${S.addClaimPlaceholder}</option>` +
+      available.map(i => `<option value="${i}">${cc(CLAIMS[i],'name')}</option>`).join('');
+    select.disabled = available.length === 0;
+    wrap.querySelector('#addClaimBtn').disabled = available.length === 0;
+  }
+
   wrap.innerHTML = `
     <div class="match-confirm">
       <p>${S.weFoundClaims}</p>
-      <div class="match-pills">${pills}</div>
+      <div class="match-pills"></div>
+      <div class="add-item-row">
+        <select id="addClaimSelect" aria-label="${S.addClaimLabel}"></select>
+        <button type="button" class="btn btn-ghost" id="addClaimBtn">${S.addItemBtn}</button>
+      </div>
       <div class="confirm-actions">
         <button class="btn btn-primary" id="confirmClaimBtn">${S.confirmDecode}</button>
       </div>
       <div style="margin-top:12px;"><button class="edit-text-link" id="editClaimTextBtn">${S.editTextInstead}</button></div>
     </div>`;
   wrap.style.display = 'block';
-  document.getElementById('confirmClaimBtn').addEventListener('click', ()=> analyzeClaimText(rawText));
+
+  renderPills();
+  renderAddOptions();
+
+  wrap.querySelector('#addClaimBtn').addEventListener('click', ()=>{
+    const select = wrap.querySelector('#addClaimSelect');
+    if(select.value === '') return;
+    confirmedIdx.push(Number(select.value));
+    renderPills();
+    renderAddOptions();
+  });
+
+  document.getElementById('confirmClaimBtn').addEventListener('click', ()=> applyConfirmedClaims(confirmedIdx));
   document.getElementById('editClaimTextBtn').addEventListener('click', ()=>{
     wrap.style.display = 'none';
     setInputMode('type');
@@ -1369,38 +1475,87 @@ document.getElementById('decodeBtn2').addEventListener('click', async ()=>{
 
 // Same pill-confirmation pattern as the claim step: shows which of the
 // currently-matched claims' flagged ingredients turned up in this scan
-// (or an honest "none found" if the list is clean), before running the
-// actual ingredient check.
+// (or an honest "none found" if the list is clean), and — same as the
+// claim step — lets the user remove a misread hit or add one the scan
+// missed, from the pool of ingredients actually relevant to the claims
+// pending a check, before running the actual verdict.
 function showIngredientMatchConfirm(rawText){
   const S = STRINGS[currentLang];
   const normalized = normalizeText(rawText);
   document.getElementById('step2').style.display = 'none';
   document.getElementById('typeStep2').style.display = 'none';
 
-  const foundNames = [];
+  const relevantNames = [];
   matchedClaims.forEach(i=>{
     const c = CLAIMS[i];
     if(!c.redFlagCheck) return;
     c.redFlagCheck.ingredients.forEach(ing=>{
-      if(ing.aliases.some(a=>matchesAlias(normalized, a)) && !foundNames.includes(ing.name)) foundNames.push(ing.name);
+      if(!relevantNames.includes(ing.name)) relevantNames.push(ing.name);
     });
   });
 
+  let confirmedNames = relevantNames.filter(name =>
+    matchedClaims.some(i=>{
+      const c = CLAIMS[i];
+      if(!c.redFlagCheck) return false;
+      const ing = c.redFlagCheck.ingredients.find(x=>x.name===name);
+      return ing && ing.aliases.some(a=>matchesAlias(normalized, a));
+    })
+  );
+
   const wrap = document.getElementById('ingMatchConfirm');
-  const pillsOrNone = foundNames.length
-    ? foundNames.map(n=>`<span class="match-pill">${n}</span>`).join('')
-    : `<p style="margin:0; font-style:italic; color:var(--ink-soft);">${S.noneOfTheseFound}</p>`;
+
+  function renderPills(){
+    const pills = confirmedNames.map(name => `
+      <span class="match-pill removable">${name}
+        <button type="button" class="pill-remove" data-name="${name}" aria-label="${S.removeAria} ${name}">×</button>
+      </span>`).join('');
+    wrap.querySelector('.match-pills').innerHTML = pills || `<p style="margin:0; font-style:italic; color:var(--ink-soft);">${S.noneOfTheseFound}</p>`;
+    wrap.querySelectorAll('.pill-remove').forEach(btn=>{
+      btn.addEventListener('click', ()=>{
+        confirmedNames = confirmedNames.filter(n => n !== btn.dataset.name);
+        renderPills();
+        renderAddOptions();
+      });
+    });
+  }
+
+  function renderAddOptions(){
+    const select = wrap.querySelector('#addIngredientSelect');
+    const available = relevantNames.filter(n => !confirmedNames.includes(n));
+    select.innerHTML = `<option value="">${S.addIngredientPlaceholder}</option>` +
+      available.map(n => `<option value="${n}">${n}</option>`).join('');
+    select.disabled = available.length === 0;
+    wrap.querySelector('#addIngredientBtn').disabled = available.length === 0;
+  }
+
   wrap.innerHTML = `
     <div class="match-confirm">
       <p>${S.weFoundIngredients}</p>
-      <div class="match-pills">${pillsOrNone}</div>
+      <div class="match-pills"></div>
+      <div class="add-item-row">
+        <select id="addIngredientSelect" aria-label="${S.addIngredientLabel}"></select>
+        <button type="button" class="btn btn-ghost" id="addIngredientBtn">${S.addItemBtn}</button>
+      </div>
       <div class="confirm-actions">
         <button class="btn btn-sage" id="confirmIngBtn">${S.confirmDecode}</button>
       </div>
       <div style="margin-top:12px;"><button class="edit-text-link" id="editIngTextBtn">${S.editTextInstead}</button></div>
     </div>`;
   wrap.style.display = 'block';
-  document.getElementById('confirmIngBtn').addEventListener('click', ()=> analyzeIngredientText(rawText));
+
+  renderPills();
+  renderAddOptions();
+
+  wrap.querySelector('#addIngredientBtn').addEventListener('click', ()=>{
+    const select = wrap.querySelector('#addIngredientSelect');
+    if(select.value === '') return;
+    confirmedNames.push(select.value);
+    renderPills();
+    renderAddOptions();
+  });
+
+  document.getElementById('confirmIngBtn').addEventListener('click', ()=> applyConfirmedIngredients(confirmedNames, rawText));
   document.getElementById('editIngTextBtn').addEventListener('click', ()=>{
     wrap.style.display = 'none';
     document.getElementById('typeStep2').style.display = 'block';
